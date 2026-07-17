@@ -1,0 +1,21 @@
+{
+  "name": "cherry-pick-studio",
+  "version": "1.0.0",
+  "description": "Browser + desktop UI for automating git cherry-picks into client branches. Shares one core git engine and one frontend across an Express web server and an Electron desktop app.",
+  "main": "desktop-electron/main.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "web": "node server/server.js",
+    "desktop": "electron .",
+    "test": "node core/selftest.js"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0"
+  }
+}

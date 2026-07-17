@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cherry-Pick Studio</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">🍒</span>
+      <div>
+        <h1>Cherry-Pick Studio</h1>
+        <p class="sub">Automate cherry-picking commits into a client branch</p>
+      </div>
+    </div>
+    <div class="topbar-actions" style="display:flex;align-items:center;gap:10px">
+      <button id="newSessionTopBtn" class="btn ghost small" title="Clear everything and start a new cherry-pick session">🔄 New session</button>
+      <button id="helpBtn" class="btn ghost small" title="Open the user guide">📖 Help</button>
+      <span id="transportBadge" class="badge muted">connecting…</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- ================= SETUP COLUMN ================= -->
+    <section class="setup">
+
+      <!-- Resume banner -->
+      <div id="resumeBanner" class="banner hidden">
+        <strong>⚠ Previous session found.</strong>
+        <div id="resumeDetails" class="mono small"></div>
+        <div class="row">
+          <button id="resumeStartBtn" class="btn small">Resume</button>
+          <button id="resumeIgnoreBtn" class="btn small ghost">Start fresh</button>
+        </div>
+      </div>
+
+      <!-- Step 1: Repository -->
+      <div class="step" id="step-repo">
+        <h2><span class="n">1</span> Repository</h2>
+        <div class="row">
+          <input id="repoPath" type="text" placeholder="Path to your git repo (e.g. D:\Projects\MyRepo)" />
+          <button id="browseBtn" class="btn ghost hidden">Browse…</button>
+          <button id="checkRepoBtn" class="btn">Check</button>
+        </div>
+        <div id="repoStatus" class="status"></div>
+        <div id="repoActions" class="row hidden">
+          <button id="abortPendingBtn" class="btn warn small hidden">Abort pending op</button>
+          <button id="stashBtn" class="btn small hidden">Auto-stash changes</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Branch -->
+      <div class="step locked" id="step-branch">
+        <h2><span class="n">2</span> Client branch</h2>
+        <div class="row">
+          <input id="branchName" type="text" placeholder="client/acme-release-2026Q1" />
+          <button id="checkBranchBtn" class="btn">Check</button>
+        </div>
+        <div id="branchStatus" class="status"></div>
+        <div id="branchConfirm" class="row hidden">
+          <button id="checkoutBtn" class="btn">Check out fresh from remote</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Commits -->
+      <div class="step locked" id="step-commits">
+        <h2><span class="n">3</span> Commits</h2>
+        <textarea id="commitInput" rows="3" placeholder="Paste commit IDs (comma or space separated):&#10;abc1234, def5678, ghi9012"></textarea>
+        <div class="row">
+          <button id="analyzeCommitsBtn" class="btn">Validate commits</button>
+        </div>
+        <div id="commitStatus" class="status"></div>
+      </div>
+
+      <!-- Step 4: Options -->
+      <div class="step locked" id="step-options">
+        <h2><span class="n">4</span> Options</h2>
+        <div class="opt">
+          <label class="opt-label">Push strategy</label>
+          <div class="row">
+            <label class="radio"><input type="radio" name="push" value="each" checked /> Push after each commit <em>(safer)</em></label>
+            <label class="radio"><input type="radio" name="push" value="batch" /> Batch push at end <em>(faster)</em></label>
+          </div>
+        </div>
+        <div class="opt">
+          <label class="opt-label">Run mode</label>
+          <div class="row">
+            <label class="radio"><input type="radio" name="mode" value="normal" checked /> Normal</label>
+            <label class="radio"><input type="radio" name="mode" value="dry-run" /> Dry run</label>
+            <label class="radio"><input type="radio" name="mode" value="review" /> Review</label>
+          </div>
+          <p id="modeHint" class="hint">Cherry-pick and commit each commit individually.</p>
+        </div>
+        <div class="opt">
+          <label class="opt-label">Log folder <em>(blank = the tool's own <code>logs/</code> folder)</em></label>
+          <input id="logBase" type="text" placeholder="(default)" />
+        </div>
+        <div class="opt">
+          <label class="opt-label">Already-applied scan depth <em>(branch commits to patch-scan; blank = 200, 0 = exact-hash only / fastest)</em></label>
+          <input id="scanDepth" type="number" min="0" step="1" placeholder="200" />
+        </div>
+      </div>
+
+      <!-- Step 5: Order & start -->
+      <div class="step locked" id="step-order">
+        <h2><span class="n">5</span> Review &amp; order</h2>
+        <button id="analyzeRunBtn" class="btn">Analyze &amp; build plan</button>
+        <div id="appliedNote" class="status"></div>
+        <div id="orderTableWrap"></div>
+        <div id="orderActions" class="row hidden">
+          <button id="reorderBtn" class="btn ghost small">Reorder…</button>
+          <button id="startBtn" class="btn go">▶ Start cherry-pick</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= RUN COLUMN ================= -->
+    <section class="run">
+      <div class="run-head">
+        <h2>Progress</h2>
+        <div id="progressMeta" class="mono small muted"></div>
+      </div>
+      <!-- live "process is running" banner -->
+      <div id="runStatus" class="runstatus hidden">
+        <span class="spin"></span>
+        <span id="runStatusText">Cherry-pick in progress…</span>
+        <span id="runDots" class="dots"></span>
+      </div>
+      <div id="progressBarWrap" class="pbar hidden"><div id="progressBar"></div></div>
+      <ul id="progressList" class="plist"></ul>
+
+      <div id="summary" class="summary hidden"></div>
+
+      <div class="run-head"><h2>Log</h2></div>
+      <pre id="logView" class="logview"></pre>
+    </section>
+  </main>
+
+  <!-- ================= MODAL ================= -->
+  <div id="modalOverlay" class="overlay hidden">
+    <div class="modal" id="modal"></div>
+  </div>
+
+  <script src="transport.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

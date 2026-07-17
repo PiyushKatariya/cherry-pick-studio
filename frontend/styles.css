@@ -1,0 +1,196 @@
+/* Cherry-Pick Studio — UI styles */
+:root {
+  --bg: #0f1419;
+  --panel: #1a212b;
+  --panel2: #222b38;
+  --line: #2c3744;
+  --text: #d7e0ea;
+  --muted: #8a98a8;
+  --accent: #e0556b;
+  --accent2: #f08699;
+  --green: #4cc38a;
+  --yellow: #e3b341;
+  --red: #f1626b;
+  --cyan: #5bc8d8;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+}
+h1, h2 { margin: 0; }
+
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 22px; background: var(--panel); border-bottom: 1px solid var(--line);
+}
+.brand { display: flex; align-items: center; gap: 14px; }
+.logo { font-size: 30px; }
+.brand h1 { font-size: 19px; }
+.sub { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+
+.layout { display: grid; grid-template-columns: minmax(420px, 1fr) minmax(420px, 1fr); gap: 18px; padding: 18px; align-items: start; }
+@media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
+
+.setup, .run { display: flex; flex-direction: column; gap: 14px; }
+
+.step {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px;
+}
+.step.locked { opacity: 0.45; pointer-events: none; }
+.step h2 { font-size: 15px; display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
+.step h2 .n {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 12px;
+}
+
+.row { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+input[type=text], textarea {
+  flex: 1; min-width: 120px; background: var(--panel2); border: 1px solid var(--line);
+  color: var(--text); padding: 9px 11px; border-radius: 7px; font-size: 13px; font-family: inherit;
+}
+textarea { width: 100%; resize: vertical; font-family: "Consolas", monospace; }
+input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+
+.btn {
+  background: var(--accent); color: #fff; border: none; padding: 9px 15px; border-radius: 7px;
+  cursor: pointer; font-size: 13px; font-weight: 600; white-space: nowrap;
+}
+.btn:hover { background: var(--accent2); }
+.btn.ghost { background: transparent; border: 1px solid var(--line); color: var(--text); }
+.btn.ghost:hover { border-color: var(--accent); }
+.btn.warn { background: var(--yellow); color: #1a1208; }
+.btn.small { padding: 6px 11px; font-size: 12px; }
+.btn.go { background: var(--green); color: #06140d; font-size: 14px; }
+.btn.go:hover { filter: brightness(1.08); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.opt { margin-top: 12px; }
+.opt-label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .04em; }
+.opt-label em, .radio em { color: var(--muted); font-style: normal; font-size: 11px; }
+.radio { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+.hint { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
+
+.status { margin-top: 10px; font-size: 13px; }
+.status .ok { color: var(--green); }
+.status .warn { color: var(--yellow); }
+.status .err { color: var(--red); }
+.status .info { color: var(--cyan); }
+.status div { margin: 3px 0; }
+
+.banner { background: #2a2310; border: 1px solid var(--yellow); border-radius: 10px; padding: 14px; }
+.banner .row { margin-top: 10px; }
+
+.badge { padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.badge.muted { background: var(--panel2); color: var(--muted); }
+.badge.live { background: var(--green); color: #06140d; }
+
+.mono { font-family: "Consolas", monospace; }
+.small { font-size: 12px; }
+.muted { color: var(--muted); }
+.hidden { display: none !important; }
+
+/* tables */
+table.ctable { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12.5px; }
+table.ctable th, table.ctable td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+table.ctable th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 11px; }
+table.ctable td.mono { font-family: "Consolas", monospace; }
+table.ctable tr.merge td { color: var(--yellow); }
+
+/* progress */
+.run-head { display: flex; align-items: center; justify-content: space-between; }
+.run-head h2 { font-size: 15px; }
+.pbar { height: 8px; background: var(--panel2); border-radius: 5px; overflow: hidden; }
+#progressBar { height: 100%; width: 0; background: var(--green); transition: width .25s; }
+.plist { list-style: none; margin: 6px 0 0; padding: 0; max-height: 280px; overflow: auto; }
+.plist li { padding: 7px 10px; border-bottom: 1px solid var(--line); display: flex; gap: 8px; align-items: center; font-size: 13px; }
+.plist li .ic { width: 18px; text-align: center; }
+.plist li.ok .ic { color: var(--green); }
+.plist li.skipped .ic { color: var(--yellow); }
+.plist li.aborted .ic, .plist li.failed .ic { color: var(--red); }
+.plist li.picking .ic { color: var(--cyan); }
+.plist li .h { font-family: "Consolas", monospace; color: var(--muted); }
+
+.logview {
+  background: #0a0e13; border: 1px solid var(--line); border-radius: 8px; padding: 12px;
+  font-family: "Consolas", monospace; font-size: 12px; max-height: 320px; overflow: auto;
+  white-space: pre-wrap; word-break: break-word; margin: 6px 0 0;
+}
+.logview .l-warn { color: var(--yellow); }
+.logview .l-error { color: var(--red); }
+.logview .l-info { color: var(--text); }
+
+.summary { background: var(--panel); border: 1px solid var(--green); border-radius: 10px; padding: 16px; }
+.summary h3 { margin: 0 0 10px; }
+.summary .grid { display: grid; grid-template-columns: auto auto; gap: 4px 18px; font-size: 13px; }
+.summary .num.green { color: var(--green); } .summary .num.yellow { color: var(--yellow); }
+.summary .num.cyan { color: var(--cyan); } .summary .num.red { color: var(--red); }
+.summary .paths { margin-top: 10px; font-size: 11.5px; color: var(--muted); word-break: break-all; }
+.summary .row { margin-top: 12px; }
+
+/* modal */
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 50; }
+.modal { background: var(--panel); border: 1px solid var(--accent); border-radius: 12px; padding: 22px; width: min(640px, 92vw); max-height: 86vh; overflow: auto; }
+.modal h3 { margin: 0 0 12px; font-size: 17px; }
+.modal .opt-row { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 11px 13px; margin: 8px 0; cursor: pointer; }
+.modal .opt-row:hover { border-color: var(--accent); }
+.modal .opt-row b { color: var(--accent2); }
+.modal .files { font-family: "Consolas", monospace; font-size: 12px; color: var(--yellow); margin: 8px 0; }
+.modal .diff { background: #0a0e13; border: 1px solid var(--line); border-radius: 8px; padding: 10px; font-family: "Consolas", monospace; font-size: 11.5px; max-height: 260px; overflow: auto; white-space: pre; }
+.modal .diff .add { color: var(--green); } .modal .diff .del { color: var(--red); } .modal .diff .hdr { color: var(--cyan); }
+
+/* ---- busy spinner inside buttons ---- */
+.spin {
+  display: inline-block; width: 12px; height: 12px;
+  border: 2px solid rgba(255, 255, 255, .35); border-top-color: #fff;
+  border-radius: 50%; animation: spin .6s linear infinite;
+  vertical-align: -1px; margin-right: 7px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---- completed step: still readable, but not editable ---- */
+.step.done { position: relative; }
+.step.done::after {
+  content: "🔒 locked"; position: absolute; top: 16px; right: 16px;
+  font-size: 11px; color: var(--muted); letter-spacing: .03em;
+}
+.step.done input,
+.step.done textarea,
+.step.done .btn { opacity: .55; cursor: not-allowed; }
+
+/* ---- an individual validated/locked field (input or button) ---- */
+.field-locked { opacity: .55 !important; cursor: not-allowed !important; }
+input.field-locked, textarea.field-locked { background: var(--panel); }
+
+/* ---- live "process is running" banner ---- */
+.runstatus {
+  display: flex; align-items: center; gap: 10px;
+  background: #15233a; border: 1px solid var(--cyan); border-radius: 8px;
+  padding: 10px 14px; margin: 4px 0 2px; font-size: 13px; font-weight: 600; color: var(--cyan);
+}
+.runstatus .spin { width: 15px; height: 15px; border-width: 2px; border-color: rgba(91,200,216,.35); border-top-color: var(--cyan); margin: 0; }
+.runstatus.waiting { background: #2a2310; border-color: var(--yellow); color: var(--yellow); }
+.runstatus.waiting .spin { animation: none; border-color: var(--yellow); border-top-color: var(--yellow); }
+/* animated trailing dots */
+.dots::after { content: ''; animation: dots 1.4s steps(4, end) infinite; }
+@keyframes dots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } }
+
+/* the commit currently being picked: pulse + spinning icon */
+.plist li.picking { background: rgba(91, 200, 216, .08); }
+.plist li.picking .ic { display: inline-block; animation: spin .8s linear infinite; }
+
+/* progress bar gets animated stripes while a run is active */
+.pbar.active #progressBar {
+  background-image: linear-gradient(45deg,
+    rgba(255,255,255,.18) 25%, transparent 25%, transparent 50%,
+    rgba(255,255,255,.18) 50%, rgba(255,255,255,.18) 75%, transparent 75%, transparent);
+  background-size: 22px 22px; animation: stripes 1s linear infinite;
+}
+@keyframes stripes { from { background-position: 0 0; } to { background-position: 22px 0; } }
+
+/* ---- setup column frozen while a cherry-pick run is in progress ---- */
+.setup.run-active { pointer-events: none; }
+.setup.run-active .step:not(.locked):not(.done) { opacity: .6; }

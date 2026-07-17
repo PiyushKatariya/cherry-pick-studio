@@ -1,0 +1,1471 @@
+╭─── Claude Code v2.1.186 ─────────────────────────────────────────────────────╮
+│                                                    │ Tips for getting        │
+│              Welcome back claudedev55!             │ started                 │
+│                                                    │ Run /init to create a … │
+│                       ▐▛███▜▌                      │ ─────────────────────── │
+│                      ▝▜█████▛▘                     │ What's new              │
+│                        ▘▘ ▝▝                       │ Added `claude mcp logi… │
+│                                                    │ Added status filtering… │
+│         Opus 4.8 · Claude Team · Casepoint         │ Added a "Skills" secti… │
+│ D:\Piyush Katariya\Piyush Katariya\DEMO\cherry-pi… │ /release-notes for more │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+
+> here i found i user have selected one step then need to disbale button and if 
+  process is on going and take time then show the loader and here we if some    
+  stpe are perfoma then we are not able to the edit that persours steps         
+
+● Let me explore the project structure first to understand what we're working
+  with.
+
+  Listed 1 directory (ctrl+o to expand)
+
+● This is a frontend-driven app. Let me look at the main frontend files to
+  understand the steps/wizard flow.
+
+  Read 1 file (ctrl+o to expand)
+
+● Let me look at the app.js to understand the current step/button behavior.
+
+  Read 1 file (ctrl+o to expand)
+
+● Now let me look at the styles to understand existing classes (.locked, .btn,
+  spinner, etc.).
+
+  Read 1 file (ctrl+o to expand)
+
+● I now understand the app fully. It's a 5-step wizard for cherry-picking. Let
+  me address your three requests:
+
+  1. Disable the button while its action is running (prevent
+  double-clicks/double-submission)
+  2. Show a loader/spinner during slow operations
+  3. Lock completed/previous steps so they can't be edited once you've moved
+  past them (and lock everything while a cherry-pick run is in progress)
+
+  Let me make the changes. First, the CSS for the spinner and locked/done
+  states:
+
+● Update(frontend\styles.css)
+  ⎿  Added 23 lines
+      141  .modal .files { font-family: "Consolas", monospace; font-size:
+            12px; color: var(--yellow); margin: 8px 0; }
+      142  .modal .diff { background: #0a0e13; border: 1px solid var(--li
+           ne); border-radius: 8px; padding: 10px; font-family: "Consolas
+           ", monospace; font-size: 11.5px; max-height: 260px; overflow: 
+           auto; white-space: pre; }
+      143  .modal .diff .add { color: var(--green); } .modal .diff .del {
+            color: var(--red); } .modal .diff .hdr { color: var(--cyan); 
+           }
+      144 +                                                              
+      145 +/* ---- busy spinner inside buttons ---- */                   
+      146 +.spin {                                                       
+      147 +  display: inline-block; width: 12px; height: 12px;           
+      148 +  border: 2px solid rgba(255, 255, 255, .35); border-top-color
+          +: #fff;                                                       
+      149 +  border-radius: 50%; animation: spin .6s linear infinite;    
+      150 +  vertical-align: -1px; margin-right: 7px;                    
+      151 +}                                                             
+      152 +@keyframes spin { to { transform: rotate(360deg); } }         
+      153 +                                                              
+      154 +/* ---- completed step: still readable, but not editable ---- 
+          +*/                                                            
+      155 +.step.done { position: relative; }                            
+      156 +.step.done::after {                                           
+      157 +  content: "🔒 locked"; position: absolute; top: 16px; right: 
+          +16px;                                                         
+      158 +  font-size: 11px; color: var(--muted); letter-spacing: .03em;
+      159 +}                                                             
+      160 +.step.done input,                                             
+      161 +.step.done textarea,                                          
+      162 +.step.done .btn { opacity: .55; cursor: not-allowed; }        
+      163 +                                                              
+      164 +/* ---- setup column frozen while a cherry-pick run is in prog
+          +ress ---- */                                                  
+      165 +.setup.run-active { pointer-events: none; }                   
+      166 +.setup.run-active .step:not(.locked):not(.done) { opacity: .6;
+          + }                                                            
+
+● Now let me add the helper functions to app.js. First, the withBusy and
+  completeStep helpers right after the lock/unlock functions:
+
+● Update(frontend\app.js)
+  ⎿  Added 37 lines
+      24    function unlock(stepId) { $(stepId).classList.remove('locked'
+          ); }
+      25    function lock(stepId) { $(stepId).classList.add('locked'); }
+      26  
+      27 +  // Run an async button action while disabling the button + sh
+         +owing a spinner.                                               
+      28 +  // Guards against double-clicks; restores the button when don
+         +e (unless its step                                             
+      29 +  // has since been marked .done, in which case it stays disabl
+         +ed).                                                           
+      30 +  async function withBusy(btn, label, fn) {                    
+      31 +    if (btn.disabled) return;            // already in flight o
+         +r locked                                                       
+      32 +    const prevHTML = btn.innerHTML;                            
+      33 +    btn.disabled = true;                                       
+      34 +    btn.innerHTML = `<span class="spin"></span>${label || 'Work
+         +ing…'}`;                                                       
+      35 +    try {                                                      
+      36 +      return await fn();                                       
+      37 +    } finally {                                                
+      38 +      btn.innerHTML = prevHTML;                                
+      39 +      const step = btn.closest('.step');                       
+      40 +      btn.disabled = !!(step && step.classList.contains('done')
+         +);                                                             
+      41 +    }                                                          
+      42 +  }                                                            
+      43 +                                                               
+      44 +  // Mark a step as completed: locks its inputs/buttons so earl
+         +ier steps can't be                                             
+      45 +  // edited once the user has moved forward.                   
+      46 +  function completeStep(stepId) {                              
+      47 +    const step = $(stepId);                                    
+      48 +    step.classList.add('done');                                
+      49 +    step.querySelectorAll('input, textarea, button').forEach((e
+         +l) => { el.disabled = true; });                                
+      50 +  }                                                            
+      51 +                                                               
+      52 +  // Re-open a completed step (used if the user resets / starts
+         + a fresh session).                                             
+      53 +  function reopenStep(stepId) {                                
+      54 +    const step = $(stepId);                                    
+      55 +    step.classList.remove('done');                             
+      56 +    step.querySelectorAll('input, textarea, button').forEach((e
+         +l) => { el.disabled = false; });                               
+      57 +  }                                                            
+      58 +                                                               
+      59 +  // Freeze / unfreeze the whole setup column while a cherry-pi
+         +ck run is active.                                              
+      60 +  function freezeSetup(on) {                                   
+      61 +    document.querySelector('.setup').classList.toggle('run-acti
+         +ve', on);                                                      
+      62 +  }                                                            
+      63 +                                                               
+      64    function setStatus(el, html) { el.innerHTML = html; }
+      65    function line(cls, txt) { return `<div class="${cls}">${txt}<
+          /div>`; }
+      66  
+
+● Now let's wire the handlers. Step 1 — Repository (Check, Abort, Stash
+  buttons):
+
+● Update(frontend\app.js)
+  ⎿  Added 6 lines, removed 6 lines
+      103      if (dir) $('repoPath').value = dir;
+      104    });
+      105  
+      106 -  $('checkRepoBtn').addEventListener('click', async () => {   
+      106 +  $('checkRepoBtn').addEventListener('click', (ev) => withBusy
+          +(ev.currentTarget, 'Checking…', async () => {                 
+      107      const repoPath = $('repoPath').value.trim();
+      108      if (!repoPath) return;
+      109      state.repoPath = repoPath;
+     ...
+      136        setStatus(s, line('err', '✗ ' + err.message));
+      137        lock('step-branch');
+      138      }
+      139 -  });                                                         
+      139 +  }));                                                        
+      140  
+      141 -  $('abortPendingBtn').addEventListener('click', async () => {
+      141 +  $('abortPendingBtn').addEventListener('click', (ev) => withB
+          +usy(ev.currentTarget, 'Aborting…', async () => {              
+      142      await T.request('abortPending', { repoPath: state.repoPath
+            });
+      143      $('checkRepoBtn').click();
+      144 -  });                                                         
+      144 +  }));                                                        
+      145  
+      146 -  $('stashBtn').addEventListener('click', async () => {       
+      146 +  $('stashBtn').addEventListener('click', (ev) => withBusy(ev.
+          +currentTarget, 'Stashing…', async () => {                     
+      147      try {
+      148        const r = await T.request('stash', { repoPath: state.rep
+           oPath });
+      149        state.didStash = true;
+     ...
+      153      } catch (err) {
+      154        alert('Stash failed: ' + err.message);
+      155      }
+      156 -  });                                                         
+      156 +  }));                                                        
+      157  
+      158    async function checkResume() {
+      159      try {
+
+● Step 2 — Branch (Check + Checkout; lock repo & branch once checked out):
+
+● Update(frontend\app.js)
+  ⎿  Added 7 lines, removed 4 lines
+      190    // =========================================================
+           ================
+      191    // Step 2 — Branch
+      192    // =========================================================
+           ================
+      193 -  $('checkBranchBtn').addEventListener('click', async () => { 
+      193 +  $('checkBranchBtn').addEventListener('click', (ev) => withBu
+          +sy(ev.currentTarget, 'Fetching…', async () => {               
+      194      const branch = $('branchName').value.trim();
+      195      if (!branch) return;
+      196      const s = $('branchStatus');
+     ...
+      213      } catch (err) {
+      214        setStatus(s, line('err', '✗ ' + err.message));
+      215      }
+      216 -  });                                                         
+      216 +  }));                                                        
+      217  
+      218 -  $('checkoutBtn').addEventListener('click', async () => {    
+      218 +  $('checkoutBtn').addEventListener('click', (ev) => withBusy(
+          +ev.currentTarget, 'Checking out…', async () => {              
+      219      const s = $('branchStatus');
+      220      try {
+      221        await T.request('checkoutBranch', { repoPath: state.repo
+           Path, branch: state.branch });
+     ...
+      223        $('branchConfirm').classList.add('hidden');
+      224        unlock('step-commits');
+      225        unlock('step-options');
+      226 +      // Repo + branch are now committed to — lock them so the
+          +y can't be edited.                                            
+      227 +      completeStep('step-repo');                              
+      228 +      completeStep('step-branch');                            
+      229      } catch (err) {
+      230        setStatus(s, line('err', '✗ ' + err.message));
+      231      }
+      229 -  });                                                         
+      232 +  }));                                                        
+      233  
+      234    // =========================================================
+           ================
+      235    // Step 3 — Commits
+
+● Step 3 — Commits (Validate; lock commits once validated):
+
+● Update(frontend\app.js)
+  ⎿  Added 3 lines, removed 2 lines
+      234    // =========================================================
+           ================
+      235    // Step 3 — Commits
+      236    // =========================================================
+           ================
+      237 -  $('analyzeCommitsBtn').addEventListener('click', async () =>
+          - {                                                            
+      237 +  $('analyzeCommitsBtn').addEventListener('click', (ev) => wit
+          +hBusy(ev.currentTarget, 'Validating…', async () => {          
+      238      const rawText = $('commitInput').value;
+      239      const s = $('commitStatus');
+      240      setStatus(s, line('info', 'Validating…'));
+     ...
+      253        state.valid = r.valid;
+      254        setStatus(s, html);
+      255        unlock('step-order');
+      256 +      completeStep('step-commits');                           
+      257      } catch (err) {
+      258        setStatus(s, line('err', '✗ ' + err.message));
+      259      }
+      259 -  });                                                         
+      260 +  }));                                                        
+      261  
+      262    // ---- run mode hint ----
+      263    document.querySelectorAll('input[name=mode]').forEach((r) =>
+
+● Step 5 — Analyze & Start (spinner on analyze; freeze entire setup during the
+  run):
+
+● Update(frontend\app.js)
+  ⎿  Added 1 line, removed 1 line
+      273    // =========================================================
+           ================
+      274    // Step 5 — Analyze run, order, start
+      275    // =========================================================
+           ================
+      276 -  $('analyzeRunBtn').addEventListener('click', async () => {  
+      276 +  $('analyzeRunBtn').addEventListener('click', (ev) => withBus
+          +y(ev.currentTarget, 'Analyzing…', async () => {               
+      277      if (!state.valid.length) { alert('Validate commits first.'
+           ); return; }
+      278      const note = $('appliedNote');
+      279      setStatus(note, line('info', 'Sorting by date & scanning t
+           arget branch…'));
+
+● Now close that handler's arrow function. Let me find its end:
+
+  Read 1 file (ctrl+o to expand)
+
+● Update(frontend\app.js)
+  ⎿  Added 1 line, removed 1 line
+      310      } catch (err) {
+      311        setStatus(note, line('err', '✗ ' + err.message));
+      312      }
+      313 -  });                                                         
+      313 +  }));                                                        
+      314  
+      315    function renderPlan() {
+      316      const rows = state.plan.map((c, i) =>
+
+● Now the Start button — freeze the whole setup and show a running spinner. Let
+  me read its full handler:
+  Read 1 file (ctrl+o to expand)
+
+● Update(frontend\app.js)
+  ⎿  Added 15 lines, removed 2 lines
+      338      renderPlan();
+      339    });
+      340  
+      341 +  let startBtnLabel = '';                                     
+      342    $('startBtn').addEventListener('click', () => {
+      343      if (!state.plan.length) return;
+      343 -    $('startBtn').disabled = true;                            
+      344 +    const btn = $('startBtn');                                
+      345 +    if (btn.disabled) return;                 // already runni
+          +ng                                                            
+      346 +    startBtnLabel = btn.innerHTML;                            
+      347 +    btn.disabled = true;                                      
+      348 +    btn.innerHTML = '<span class="spin"></span>Running…';     
+      349 +    $('reorderBtn').disabled = true;                          
+      350 +    freezeSetup(true);                        // no editing an
+          +y step while running                                          
+      351      $('progressList').innerHTML = '';
+      352      $('summary').classList.add('hidden');
+      353      $('progressBarWrap').classList.remove('hidden');
+     ...
+      363        didStash: state.didStash,
+      364        stashRef: state.stashRef,
+      365      };
+      359 -    T.request('start', { config }).catch((e) => { alert(e.mess
+          -age); $('startBtn').disabled = false; });                     
+      366 +    T.request('start', { config }).catch((e) => {             
+      367 +      alert(e.message);                                       
+      368 +      btn.disabled = false;                                   
+      369 +      if (startBtnLabel) btn.innerHTML = startBtnLabel;       
+      370 +      $('reorderBtn').disabled = false;                       
+      371 +      freezeSetup(false);                                     
+      372 +    });                                                       
+      373    });
+      374  
+      375    // =========================================================
+           ================
+
+● Now update onSummary to restore the Start button label and unfreeze the setup
+  when the run finishes:
+
+● Update(frontend\app.js)
+  ⎿  Added 3 lines
+      478    function onSummary(e) {
+      479      const c = e.counters;
+      480      $('startBtn').disabled = false;
+      481 +    if (startBtnLabel) $('startBtn').innerHTML = startBtnLabel
+          +;                                                             
+      482 +    $('reorderBtn').disabled = false;                         
+      483 +    freezeSetup(false);                       // run finished 
+          +— setup editable again                                        
+      484      $('progressBar').style.width = '100%';
+      485      const stashBtn = e.didStash
+      486        ? `<button id="popStashBtn" class="btn small">Pop stash 
+           (${esc(e.stashRef)})</button>` : '';
+
+● As a safety net, also restore on the done event in case summary doesn't fire
+  (e.g. an aborted run):
+
+● Update(frontend\app.js)
+  ⎿  Added 11 lines, removed 1 line
+      83    T.on('progress', onProgress);
+      84    T.on('await', onAwait);
+      85    T.on('summary', onSummary);
+      86 -  T.on('done', () => appendLog('info', '— session finished —'))
+         -;                                                              
+      86 +  T.on('done', () => {                                         
+      87 +    appendLog('info', '— session finished —');                 
+      88 +    // Backstop: make sure the UI is unfrozen even if no summar
+         +y arrived.                                                     
+      89 +    const sb = $('startBtn');                                  
+      90 +    if (sb.disabled) {                                         
+      91 +      sb.disabled = false;                                     
+      92 +      if (startBtnLabel) sb.innerHTML = startBtnLabel;         
+      93 +    }                                                          
+      94 +    $('reorderBtn').disabled = false;                          
+      95 +    freezeSetup(false);                                        
+      96 +  });                                                          
+      97    T.on('error', (e) => { appendLog('error', e.message); alert('
+          Error: ' + e.message); });
+      98  
+      99    function appendLog(level, message) {
+
+● One more: the Resume flow expects the user to re-check out the branch and
+  re-validate, so those steps must be editable. Let me reopen any locked steps
+  there:
+
+● Update(frontend\app.js)
+  ⎿  Added 3 lines
+      194      document.querySelector(`input[name=mode][value="${d.run_mo
+           de}"]`)?.click();
+      195      $('resumeBanner').classList.add('hidden');
+      196      appendLog('info', 'Loaded previous session — check out the
+            branch, validate, then Start.');
+      197 +    // Re-open any steps locked by a prior run so the resumed 
+          +session is editable.                                          
+      198 +    reopenStep('step-branch');                                
+      199 +    reopenStep('step-commits');                               
+      200      unlock('step-branch');
+      201    });
+      202  
+
+● Now let me verify the JS is syntactically valid with node:
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Syntax is valid. All changes are done. Here's a summary of what I implemented
+  for your three points:
+
+  1. Disable the button + show a loader while an action runs
+
+  Added a withBusy(btn, label, fn) helper that wraps every async action. When
+  you click a button it:
+  - disables the button immediately (a guard if (btn.disabled) return blocks
+  double-clicks/double-submission), and
+  - shows a spinning loader with a label (e.g. "Checking…", "Fetching…",
+  "Validating…", "Analyzing…", "Checking out…", "Stashing…").
+
+  When the request finishes it restores the button — unless the step has been
+  locked, in which case it stays disabled.
+
+  Wired into: Check repo, Abort pending, Auto-stash, Check branch, Check out 
+  fresh, Validate commits, Analyze & build plan, and Start.
+
+  The CSS spinner (.spin) was added to styles.css.
+
+  2. Loader for long-running processes
+
+  - Each async button now shows the inline spinner above.
+  - Start cherry-pick turns into a 🌀 Running… spinner and stays that way until
+  the run finishes (summary/done event), then restores.
+
+  3. Lock previous/completed steps so they can't be edited
+
+  - completeStep(stepId) marks a step .done — disables all its inputs/buttons
+  and shows a small 🔒 locked badge.
+  - Repo (1) and Branch (2) lock once you successfully check out the branch.
+  - Commits (3) locks once commits are validated.
+  - While a cherry-pick run is in progress, the entire setup column is frozen
+  (freezeSetup(true) → .run-active, pointer-events:none). It unfreezes when the
+  run completes (with a backstop on the done event), but the steps locked above
+  stay locked.
+  - The Resume flow re-opens the branch/commits steps (reopenStep) so a resumed
+  session is still editable.
+
+  To see it live, run the app (e.g. run-cherry-pick-studio.bat or studio.ps1)
+  and step through the wizard. Want me to launch it and screenshot the
+  locked/spinner states to confirm?
+
+✻ Sautéed for 4m 58s
+
+> i have open the desktop tool                                                  
+                                                                                
+  if i selecte repo and validatre that then if succesfull validate then disable 
+  the browse and checkbutton                                                    
+                                                                                
+  so inbetween this can not be change by user                                   
+                                                                                
+  same for step all the step only required button is accessable                 
+
+● Got it — you want each step to lock its own input + validate button the moment
+  it validates successfully, leaving only the button needed to move forward.
+  Let me refine the locking to be per-field rather than waiting until checkout.
+
+  Let me re-read the current state of the handlers:
+
+  Read 1 file (ctrl+o to expand)
+
+● Now let me update the helpers — add per-field lock helpers and make withBusy
+  respect explicitly locked buttons:
+
+● Update(frontend\app.js)
+  ⎿  Added 17 lines, removed 6 lines
+      37      } finally {
+      38        btn.innerHTML = prevHTML;
+      39        const step = btn.closest('.step');
+      40 -      btn.disabled = !!(step && step.classList.contains('done')
+         -);                                                             
+      40 +      // Keep the button disabled if its step is fully done, or
+         + if it was                                                     
+      41 +      // explicitly locked during the action (e.g. a validated 
+         +input's button).                                               
+      42 +      btn.disabled = !!(step && step.classList.contains('done')
+         +) || btn.classList.contains('field-locked');                   
+      43      }
+      44    }
+      45  
+      44 -  // Mark a step as completed: locks its inputs/buttons so earl
+         -ier steps can't be                                             
+      45 -  // edited once the user has moved forward.                   
+      46 +  // Lock specific controls (input/textarea/button) so they can
+         +'t be changed once                                             
+      47 +  // that part of a step has been validated. Leaves the rest of
+         + the step usable.                                              
+      48 +  function lockControls(...els) {                              
+      49 +    els.forEach((el) => { if (el) { el.disabled = true; el.clas
+         +sList.add('field-locked'); } });                               
+      50 +  }                                                            
+      51 +  function unlockControls(...els) {                            
+      52 +    els.forEach((el) => { if (el) { el.disabled = false; el.cla
+         +ssList.remove('field-locked'); } });                           
+      53 +  }                                                            
+      54 +                                                               
+      55 +  // Mark a step as fully completed: locks all of its inputs/bu
+         +ttons + shows the                                              
+      56 +  // 🔒 badge, so earlier steps can't be edited once the user h
+         +as moved forward.                                              
+      57    function completeStep(stepId) {
+      58      const step = $(stepId);
+      59      step.classList.add('done');
+      49 -    step.querySelectorAll('input, textarea, button').forEach((e
+         -l) => { el.disabled = true; });                                
+      60 +    step.querySelectorAll('input, textarea, button').forEach((e
+         +l) => { el.disabled = true; el.classList.add('field-locked'); }
+         +);                                                             
+      61    }
+      62  
+      52 -  // Re-open a completed step (used if the user resets / starts
+         - a fresh session).                                             
+      63 +  // Re-open a completed/locked step (used if the user resets /
+         + resumes a session).                                           
+      64    function reopenStep(stepId) {
+      65      const step = $(stepId);
+      66      step.classList.remove('done');
+      56 -    step.querySelectorAll('input, textarea, button').forEach((e
+         -l) => { el.disabled = false; });                               
+      67 +    step.querySelectorAll('input, textarea, button').forEach((e
+         +l) => { el.disabled = false; el.classList.remove('field-locked'
+         +); });                                                         
+      68    }
+      69  
+      70    // Freeze / unfreeze the whole setup column while a cherry-pi
+          ck run is active.
+
+● Now refactor the repo check into a callable function and lock the repo
+  input/Browse/Check on success. Let me read the current Step 1 handlers:
+
+  Read 1 file (ctrl+o to expand)
+
+● Now I'll refactor Step 1: extract the check logic, lock repo path/Browse/Check
+  on success, and fix the internal re-checks (which would otherwise hit the
+  now-disabled button):
+
+● Update(frontend\app.js)
+  ⎿  Added 11 lines, removed 4 lines
+      124      if (dir) $('repoPath').value = dir;
+      125    });
+      126  
+      127 -  $('checkRepoBtn').addEventListener('click', (ev) => withBusy
+          -(ev.currentTarget, 'Checking…', async () => {                 
+      127 +  // Core repo preflight — callable directly (so stash/abort c
+          +an refresh the                                                
+      128 +  // status without going through the now-disabled Check butto
+          +n).                                                           
+      129 +  async function runRepoCheck() {                             
+      130      const repoPath = $('repoPath').value.trim();
+      131      if (!repoPath) return;
+      132      state.repoPath = repoPath;
+     ...
+      153          $('stashBtn').classList.add('hidden');
+      154        }
+      155        setStatus(s, html);
+      156 +      // Validated OK → lock the repo path + Browse + Check so
+          + it can't change.                                             
+      157 +      // (Abort/Stash remain available; they're the only remed
+          +iation actions.)                                              
+      158 +      lockControls($('repoPath'), $('browseBtn'), $('checkRepo
+          +Btn'));                                                       
+      159        unlock('step-branch');
+      160        checkResume();
+      161      } catch (err) {
+      162        setStatus(s, line('err', '✗ ' + err.message));
+      163        lock('step-branch');
+      164      }
+      160 -  }));                                                        
+      165 +  }                                                           
+      166  
+      167 +  $('checkRepoBtn').addEventListener('click', (ev) => withBusy
+          +(ev.currentTarget, 'Checking…', runRepoCheck));               
+      168 +                                                              
+      169    $('abortPendingBtn').addEventListener('click', (ev) => withB
+           usy(ev.currentTarget, 'Aborting…', async () => {
+      170      await T.request('abortPending', { repoPath: state.repoPath
+            });
+      164 -    $('checkRepoBtn').click();                                
+      171 +    await runRepoCheck();                                     
+      172    }));
+      173  
+      174    $('stashBtn').addEventListener('click', (ev) => withBusy(ev.
+           currentTarget, 'Stashing…', async () => {
+     ...
+      177        state.didStash = true;
+      178        state.stashRef = r.ref;
+      179        appendLog('info', `Auto-stashed as ${r.ref}`);
+      173 -      $('checkRepoBtn').click();                              
+      180 +      await runRepoCheck();                                   
+      181      } catch (err) {
+      182        alert('Stash failed: ' + err.message);
+      183      }
+
+● Now Step 2 — Branch: lock the branch name + Check button on successful check,
+  keeping only "Check out fresh" accessible:
+
+  Read 1 file (ctrl+o to expand)
+
+● Update(frontend\app.js)
+  ⎿  Added 2 lines
+      240        }
+      241        setStatus(s, html);
+      242        state.branch = branch;
+      243 +      // Validated OK → lock the branch name + Check; only "Ch
+          +eck out fresh" left.                                          
+      244 +      lockControls($('branchName'), $('checkBranchBtn'));     
+      245        $('branchConfirm').classList.remove('hidden');
+      246      } catch (err) {
+      247        setStatus(s, line('err', '✗ ' + err.message));
+
+● Step 3 — Commits already uses completeStep('step-commits'), which now also
+  locks the field. Good. Let me verify the syntax:
+
+  Ran 1 shell command (ctrl+o to expand)
+● Now add the .field-locked CSS so locked fields look disabled:
+
+● Update(frontend\styles.css)
+  ⎿  Added 4 lines
+      161  .step.done textarea,
+      162  .step.done .btn { opacity: .55; cursor: not-allowed; }
+      163  
+      164 +/* ---- an individual validated/locked field (input or button)
+          + ---- */                                                      
+      165 +.field-locked { opacity: .55 !important; cursor: not-allowed !
+          +important; }                                                  
+      166 +input.field-locked, textarea.field-locked { background: var(--
+          +panel); }                                                     
+      167 +                                                              
+      168  /* ---- setup column frozen while a cherry-pick run is in prog
+           ress ---- */
+      169  .setup.run-active { pointer-events: none; }
+      170  .setup.run-active .step:not(.locked):not(.done) { opacity: .6;
+            }
+
+● Done. Here's what now happens per step — each one locks its input and validate
+  button the instant it validates successfully, leaving only the button needed
+  to advance:
+
+  ┌────────────────┬──────────────────────────┬────────────────────────────┐
+  │      Step      │  On successful validate  │      Stays clickable       │
+  ├────────────────┼──────────────────────────┼────────────────────────────┤
+  │ 1 · Repository │ Repo path, Browse, Check │ Abort pending / Auto-stash │
+  │                │  are locked              │  (only if needed)          │
+  ├────────────────┼──────────────────────────┼────────────────────────────┤
+  │ 2 · Client     │ Branch name + Check are  │ Check out fresh from       │
+  │ branch         │ locked                   │ remote                     │
+  ├────────────────┼──────────────────────────┼────────────────────────────┤
+  │ 2 → after      │ Steps 1 and 2 fully      │ — (move to commits)        │
+  │ checkout       │ locked (🔒 badge)        │                            │
+  ├────────────────┼──────────────────────────┼────────────────────────────┤
+  │ 3 · Commits    │ Commit box + Validate    │ — (move to plan)           │
+  │                │ locked (🔒 badge)        │                            │
+  ├────────────────┼──────────────────────────┼────────────────────────────┤
+  │ 5 · Start      │ Whole setup frozen       │ run controls only          │
+  │                │ during the run           │                            │
+  └────────────────┴──────────────────────────┴────────────────────────────┘
+
+  Key details:
+  - No double-submission — withBusy disables the button + shows a 🌀 spinner
+  while the request is in flight, and respects locks (a locked button stays
+  disabled after the request finishes).
+  - Stash / Abort still refresh correctly — I extracted runRepoCheck() so those
+  remediation actions re-run the preflight directly instead of clicking the
+  now-disabled Check button.
+  - Resume re-opens the branch/commits steps so a resumed session is editable
+  again.
+  - Visual: locked inputs/buttons dim to 55% with a not-allowed cursor;
+  fully-finished steps show a 🔒 locked badge.
+
+  Both files (frontend/app.js, frontend/styles.css) pass a syntax check.
+
+  To see it in the open desktop tool, reload it — press Ctrl+R in the app window
+  (or close and relaunch via run-desktop.bat), since the frontend is loaded
+  from these files on disk.
+
+  One thing I left editable on purpose: Step 4 Options and the Analyze & build 
+  plan button in Step 5 — re-running the plan is legitimately useful (e.g. after
+  changing scan depth). Want me to lock those too once a plan is built, so only
+  Reorder + Start remain?
+
+✻ Sautéed for 2m 35s
+
+> here if frist commit list is complated merge then new srtart new seeson that  
+  time need to colse the tool and need to open again check it once what we can  
+  give user to                                                                  
+
+● Good question — right now after a run finishes, there's no in-app way to start
+  over; you have to close and relaunch. Let me add a "Start new session" button
+  so the user can reset the wizard in place.
+
+  Let me look at the current summary panel:
+
+  Read 1 file (ctrl+o to expand)
+
+● Now let me add the resetSession() helper next to the other helpers, then add
+  the button to the summary and wire it:
+
+● Update(frontend\app.js)
+  ⎿  Added 50 lines
+       72      document.querySelector('.setup').classList.toggle('run-act
+           ive', on);
+       73    }
+       74  
+       75 +  // Reset the whole wizard to a fresh state so the user can r
+          +un another batch                                              
+       76 +  // WITHOUT closing & reopening the tool. The repo path text 
+          +is kept (same repo,                                           
+       77 +  // most likely) but re-validated; everything downstream is c
+          +leared & re-locked.                                           
+       78 +  function resetSession() {                                   
+       79 +    // ---- state ----                                        
+       80 +    state.branch = '';                                        
+       81 +    state.valid = [];                                         
+       82 +    state.plan = [];                                          
+       83 +    state.applied = [];                                       
+       84 +    state.preSkipped = 0;                                     
+       85 +    state.originalTotal = 0;                                  
+       86 +    state.didStash = false;                                   
+       87 +    state.stashRef = '';                                      
+       88 +                                                              
+       89 +    // ---- inputs & status text ----                         
+       90 +    $('branchName').value = '';                               
+       91 +    $('commitInput').value = '';                              
+       92 +    setStatus($('repoStatus'), '');                           
+       93 +    setStatus($('branchStatus'), '');                         
+       94 +    setStatus($('commitStatus'), '');                         
+       95 +    setStatus($('appliedNote'), '');                          
+       96 +    $('orderTableWrap').innerHTML = '';                       
+       97 +                                                              
+       98 +    // ---- conditional rows back to hidden ----              
+       99 +    ['repoActions', 'abortPendingBtn', 'stashBtn', 'branchConf
+          +irm', 'orderActions', 'resumeBanner']                         
+      100 +      .forEach((id) => $(id).classList.add('hidden'));        
+      101 +                                                              
+      102 +    // ---- re-open every step, then re-lock everything past s
+          +tep 1 ----                                                    
+      103 +    ['step-repo', 'step-branch', 'step-commits', 'step-options
+          +', 'step-order'].forEach(reopenStep);                         
+      104 +    ['step-branch', 'step-commits', 'step-options', 'step-orde
+          +r'].forEach(lock);                                            
+      105 +                                                              
+      106 +    // ---- progress + summary panes ----                     
+      107 +    Object.keys(liRefs).forEach((k) => delete liRefs[k]);     
+      108 +    $('progressList').innerHTML = '';                         
+      109 +    $('progressMeta').textContent = '';                       
+      110 +    $('progressBar').style.width = '0';                       
+      111 +    $('progressBarWrap').classList.add('hidden');             
+      112 +    $('summary').classList.add('hidden');                     
+      113 +    $('summary').innerHTML = '';                              
+      114 +                                                              
+      115 +    // ---- start button + freeze state ----                  
+      116 +    const sb = $('startBtn');                                 
+      117 +    sb.disabled = false;                                      
+      118 +    if (startBtnLabel) sb.innerHTML = startBtnLabel;          
+      119 +    freezeSetup(false);                                       
+      120 +                                                              
+      121 +    $('repoPath').focus();                                    
+      122 +    appendLog('info', '— new session — paste the next batch wh
+          +en ready.');                                                  
+      123 +  }                                                           
+      124 +                                                              
+      125    function setStatus(el, html) { el.innerHTML = html; }
+      126    function line(cls, txt) { return `<div class="${cls}">${txt}
+           </div>`; }
+      127  
+
+● Now add the button to the summary panel and wire it:
+
+● Update(frontend\app.js)
+  ⎿  Added 2 lines
+      580        </div>
+      581        <div class="paths">Log: ${esc(e.logFile)}</div>
+      582        <div class="row">
+      583 +        <button id="newSessionBtn" class="btn small go">🔄 Sta
+          +rt new session</button>                                       
+      584          ${stashBtn}
+      585          <button id="delProgressBtn" class="btn small ghost">De
+           lete progress file</button>
+      586        </div>`;
+     ...
+      595        appendLog('info', 'Progress file deleted.');
+      596        $('delProgressBtn').disabled = true;
+      597      });
+      598 +    $('newSessionBtn').addEventListener('click', resetSession)
+          +;                                                             
+      599    }
+      600  })();
+
+● Let me also add an always-available New session button in the header (with a
+  guard so it can't fire mid-run), since the user may want to reset even without
+  reaching the summary:
+
+● Update(frontend\index.html)
+  ⎿  Added 1 line
+      16        </div>
+      17      </div>
+      18      <div class="topbar-actions" style="display:flex;align-items
+          :center;gap:10px">
+      19 +      <button id="newSessionTopBtn" class="btn ghost small" tit
+         +le="Clear everything and start a new cherry-pick session">🔄 Ne
+         +w session</button>                                             
+      20        <button id="helpBtn" class="btn ghost small" title="Open 
+          the user guide">📖 Help</button>
+      21        <span id="transportBadge" class="badge muted">connecting…
+          </span>
+      22      </div>
+
+● Now wire the header button with a guard against resetting mid-run. Let me add
+  it near the help button handler:
+
+● Update(frontend\app.js)
+  ⎿  Added 8 lines
+      139      else window.open('/docs/Cherry-Pick-Studio-Guide.html', '_
+           blank');
+      140    });
+      141  
+      142 +  // ---- New session (header): reset the wizard without resta
+          +rting the tool --                                             
+      143 +  $('newSessionTopBtn').addEventListener('click', () => {     
+      144 +    const running = document.querySelector('.setup').classList
+          +.contains('run-active');                                      
+      145 +    if (running) { alert('A cherry-pick run is in progress — w
+          +ait for it to finish first.'); return; }                      
+      146 +    if (!confirm('Start a new session? This clears the current
+          + branch, commits, and plan.')) return;                        
+      147 +    resetSession();                                           
+      148 +  });                                                         
+      149 +                                                              
+      150    // ---- streamed events ------------------------------------
+           ---------------
+      151    T.on('log', (e) => appendLog(e.level, e.message));
+      152    T.on('progress', onProgress);
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Done. You now have two in-app ways to start a new session — no more closing
+  and reopening the tool:
+
+  1. Summary panel — after a batch finishes, a green 🔄 Start new session button
+  appears right next to Pop stash / Delete progress file. That's the moment you
+  described (first commit list completed → start the next batch).
+
+  2. Header button — a 🔄 New session button is always visible top-right, so you
+  can reset even if a run errored or you just changed your mind. It's guarded:
+  - If a run is still in progress → it refuses and tells you to wait.
+  - Otherwise → asks "Start a new session? This clears the current branch, 
+  commits, and plan." before resetting.
+
+  What resetSession() does:
+  - Clears branch, commit list, validated/plan state, stash flags, progress
+  list, progress bar, and the summary panel.
+  - Re-opens all steps and re-locks everything past Step 1 (so the wizard
+  behaves exactly like a fresh launch).
+  - Keeps the repo path text (same repo, most likely) but re-locks Step 1 so you
+  click Check again — this is intentional, because the repo's working-tree
+  state changed after the previous run, so re-validating is the safe thing to
+  do.
+  - Puts the cursor back in the repo path field and logs — new session —.
+
+  app.js passes the syntax check, and index.html has the new header button.
+
+  To try it in the open desktop tool, reload it — press Ctrl+R in the window (or
+  relaunch via run-desktop.bat).
+
+  One choice to confirm: I made "new session" keep the repo path but re-validate
+  it. Would you prefer it to fully clear the repo path too (completely blank
+  slate), or keep the repo fully validated so you skip straight to entering the
+  new branch? Right now it's the middle ground (path kept, one Check click).
+
+✻ Sautéed for 2m 15s
+
+> here still the analyze and build paln and start cherry-pick button still in   
+  open                                                                          
+
+● You're right — Step 5 wasn't following the same lock pattern. Once you click
+  Analyze & build plan and the plan is built, that button should lock too,
+  leaving only Reorder and Start. Let me fix that.
+
+  Read 1 file (ctrl+o to expand)
+
+● Update(frontend\app.js)
+  ⎿  Added 4 lines
+      398        setStatus(note, html);
+      399        renderPlan();
+      400        $('orderActions').classList.remove('hidden');
+      401 +      // Plan built → lock the options + the Analyze button. O
+          +nly Reorder & Start                                           
+      402 +      // remain. (Use "New session" / "Reorder" to change thin
+          +gs from here.)                                                
+      403 +      completeStep('step-options');                           
+      404 +      lockControls($('analyzeRunBtn'));                       
+      405      } catch (err) {
+      406        setStatus(note, line('err', '✗ ' + err.message));
+      407      }
+
+● Let me reconsider — I shouldn't lock the whole Options step, since push 
+  strategy / run mode are legitimately last-minute decisions read at Start time.
+  I'll only lock the Analyze button:
+
+● Update(frontend\app.js)
+  ⎿  Added 2 lines, removed 3 lines
+      398        setStatus(note, html);
+      399        renderPlan();
+      400        $('orderActions').classList.remove('hidden');
+      401 -      // Plan built → lock the options + the Analyze button. O
+          -nly Reorder & Start                                           
+      402 -      // remain. (Use "New session" / "Reorder" to change thin
+          -gs from here.)                                                
+      403 -      completeStep('step-options');                           
+      401 +      // Plan built → lock the Analyze button; only Reorder & 
+          +Start remain.                                                 
+      402 +      // (Use Reorder to re-order, or "New session" to rebuild
+          + from scratch.)                                               
+      403        lockControls($('analyzeRunBtn'));
+      404      } catch (err) {
+      405        setStatus(note, line('err', '✗ ' + err.message));
+
+> check for other button as per follow                                          
+
+● Now let me lock the whole order/start step once a run completes, so Start and
+  Reorder don't stay "open" for accidental re-runs (New session is the path to
+  run again). Let me update onSummary and the done backstop:
+● Update(frontend\app.js)
+  ⎿  Added 4 lines, removed 3 lines
+      571    // =========================================================
+           ================
+      572    function onSummary(e) {
+      573      const c = e.counters;
+      574 -    $('startBtn').disabled = false;                           
+      574      if (startBtnLabel) $('startBtn').innerHTML = startBtnLabel
+           ;
+      576 -    $('reorderBtn').disabled = false;                         
+      577 -    freezeSetup(false);                       // run finished 
+          -— setup editable again                                        
+      575 +    freezeSetup(false);                       // run finished 
+          +— unfreeze the column                                         
+      576 +    // Run is done: lock the whole order/start step (Analyze, 
+          +Reorder, Start).                                              
+      577 +    // To run another batch the user clicks "Start new session
+          +".                                                            
+      578 +    completeStep('step-order');                               
+      579      $('progressBar').style.width = '100%';
+      580      const stashBtn = e.didStash
+      581        ? `<button id="popStashBtn" class="btn small">Pop stash 
+           (${esc(e.stashRef)})</button>` : '';
+
+● Update(frontend\app.js)
+  ⎿  Added 7 lines, removed 5 lines
+      154    T.on('summary', onSummary);
+      155    T.on('done', () => {
+      156      appendLog('info', '— session finished —');
+      157 -    // Backstop: make sure the UI is unfrozen even if no summa
+          -ry arrived.                                                   
+      158 -    const sb = $('startBtn');                                 
+      159 -    if (sb.disabled) {                                        
+      157 +    // Backstop: if the run ended WITHOUT a summary (e.g. abor
+          +ted), restore the                                             
+      158 +    // Start/Reorder buttons so the user can retry. If a summa
+          +ry already locked                                             
+      159 +    // the order step, leave it locked.                       
+      160 +    if (!$('step-order').classList.contains('done')) {        
+      161 +      const sb = $('startBtn');                               
+      162        sb.disabled = false;
+      163        if (startBtnLabel) sb.innerHTML = startBtnLabel;
+      164 +      $('reorderBtn').disabled = false;                       
+      165 +      freezeSetup(false);                                     
+      166      }
+      163 -    $('reorderBtn').disabled = false;                         
+      164 -    freezeSetup(false);                                       
+      167    });
+      168    T.on('error', (e) => { appendLog('error', e.message); alert(
+           'Error: ' + e.message); });
+      169  
+
+● Now the user wants me to audit all other buttons for consistent behavior. Let
+  me check the remaining async buttons that don't yet guard against
+  double-clicks. Let me look at the resume + summary action buttons:
+
+  Read 1 file (ctrl+o to expand)
+
+● Update(frontend\app.js)
+  ⎿  Added 2 lines, removed 2 lines
+      256      } catch (_) {}
+      257    }
+      258  
+      259 -  $('resumeIgnoreBtn').addEventListener('click', async () => {
+      259 +  $('resumeIgnoreBtn').addEventListener('click', (ev) => withB
+          +usy(ev.currentTarget, 'Working…', async () => {               
+      260      const file = $('resumeBanner')._file;
+      261      if (file) await T.request('deleteProgress', { file });
+      262      $('resumeBanner').classList.add('hidden');
+      263 -  });                                                         
+      263 +  }));                                                        
+      264  
+      265    $('resumeStartBtn').addEventListener('click', () => {
+      266      const d = $('resumeBanner')._data;
+
+● Now the summary action buttons (Pop stash, Delete progress) — they should
+  guard against double-clicks during their request:
+
+  Read 1 file (ctrl+o to expand)
+
+● Update(frontend\app.js)
+  ⎿  Added 14 lines, removed 9 lines
+      600        </div>`;
+      601      $('summary').classList.remove('hidden');
+      602      const pop = $('popStashBtn');
+      603 -    if (pop) pop.addEventListener('click', async () => {      
+      604 -      try { await T.request('popStash', { repoPath: state.repo
+          -Path }); appendLog('info', 'Stash popped.'); pop.disabled = tr
+          -ue; }                                                         
+      605 -      catch (err) { alert('Pop failed: ' + err.message); }    
+      606 -    });                                                       
+      607 -    $('delProgressBtn').addEventListener('click', async () => 
+          -{                                                             
+      608 -      await T.request('deleteProgress', { file: e.progressFile
+          - });                                                          
+      609 -      appendLog('info', 'Progress file deleted.');            
+      610 -      $('delProgressBtn').disabled = true;                    
+      611 -    });                                                       
+      603 +    if (pop) pop.addEventListener('click', (ev) => withBusy(ev
+          +.currentTarget, 'Popping…', async () => {                     
+      604 +      try {                                                   
+      605 +        await T.request('popStash', { repoPath: state.repoPath
+          + });                                                          
+      606 +        appendLog('info', 'Stash popped.');                   
+      607 +        lockControls(pop);                    // one-shot — st
+          +ays disabled after success                                    
+      608 +      } catch (err) { alert('Pop failed: ' + err.message); }  
+      609 +    }));                                                      
+      610 +    $('delProgressBtn').addEventListener('click', (ev) => with
+          +Busy(ev.currentTarget, 'Deleting…', async () => {             
+      611 +      try {                                                   
+      612 +        await T.request('deleteProgress', { file: e.progressFi
+          +le });                                                        
+      613 +        appendLog('info', 'Progress file deleted.');          
+      614 +        lockControls(ev.currentTarget);       // one-shot — st
+          +ays disabled after success                                    
+      615 +      } catch (err) { alert('Delete failed: ' + err.message); 
+          +}                                                             
+      616 +    }));                                                      
+      617      $('newSessionBtn').addEventListener('click', resetSession)
+           ;
+      618    }
+      619  })();
+
+● Let me also guard the Browse button (it opens an async folder dialog) for
+  completeness:
+
+● Update(frontend\app.js)
+  ⎿  Added 2 lines, removed 2 lines
+      179    // =========================================================
+           ================
+      180    // Step 1 — Repository
+      181    // =========================================================
+           ================
+      182 -  $('browseBtn').addEventListener('click', async () => {      
+      182 +  $('browseBtn').addEventListener('click', (ev) => withBusy(ev
+          +.currentTarget, 'Browse…', async () => {                      
+      183      const dir = await T.pickFolder();
+      184      if (dir) $('repoPath').value = dir;
+      185 -  });                                                         
+      185 +  }));                                                        
+      186  
+      187    // Core repo preflight — callable directly (so stash/abort c
+           an refresh the
+      188    // status without going through the now-disabled Check butto
+           n).
+
+● Now let me verify syntax and do a final audit of every button:
+
+  Searched for 1 pattern, ran 1 shell command (ctrl+o to expand)
+
+● All click handlers are now consistent. Let me harden one more edge case — the
+  modal option rows could double-fire a response on a fast double-click. Let me
+  guard answer():
+
+  Read 1 file (ctrl+o to expand)
+
+● Update(frontend\app.js)
+  ⎿  Added 6 lines, removed 1 line
+      500      $('modalOverlay').classList.remove('hidden');
+      501    }
+      502    function hideModal() { $('modalOverlay').classList.add('hidd
+           en'); }
+      503 -  function answer(token, payload) { T.fire('respond', { token,
+          - payload }); hideModal(); }                                   
+      503 +  function answer(token, payload) {                           
+      504 +    // Guard against a double-click sending two responses for 
+          +one prompt.                                                   
+      505 +    if ($('modalOverlay').classList.contains('hidden')) return
+          +;                                                             
+      506 +    hideModal();                                              
+      507 +    T.fire('respond', { token, payload });                    
+      508 +  }                                                           
+      509  
+      510    function modalMerge(e) {
+      511      const c = e.commit;
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● All buttons now follow the same pattern. Here's the complete audit:
+
+  ┌──────────────────┬──────────────────────┬──────────────────────────────┐
+  │      Button      │ Double-click guard + │          Locks when          │
+  │                  │        loader        │                              │
+  ├──────────────────┼──────────────────────┼──────────────────────────────┤
+  │ Browse           │ ✓ Browse…            │ with repo, after repo        │
+  │                  │                      │ validates                    │
+  ├──────────────────┼──────────────────────┼──────────────────────────────┤
+  │ Check (repo)     │ ✓ Checking…          │ on success (path + Browse +  │
+  │                  │                      │ Check)                       │
+  ├──────────────────┼──────────────────────┼──────────────────────────────┤
+  │ Abort pending /  │ ✓ Aborting… /        │ when repo step fully done    │
+  │ Auto-stash       │ Stashing…            │ (checkout)                   │
+  ├──────────────────┼──────────────────────┼──────────────────────────────┤
+  │ Check (branch)   │ ✓ Fetching…          │ on success (branch name +    │
+  │                  │                      │ Check)                       │
+  ├──────────────────┼──────────────────────┼──────────────────────────────┤
+  │ Check out fresh  │ ✓ Checking out…      │ fully locks steps 1 & 2 (🔒) │
+  ├──────────────────┼──────────────────────┼──────────────────────────────┤
+  │ Validate commits │ ✓ Validating…        │ fully locks step 3 (🔒)      │
+  ├──────────────────┼──────────────────────┼──────────────────────────────┤
+  │ Analyze & build  │ ✓ Analyzing…         │ on success (now fixed) —     │
+  │ plan             │                      │ only Reorder + Start remain  │
+  ├──────────────────┼──────────────────────┼──────────────────────────────┤
+  │ Reorder          │ n/a (instant prompt) │ during run + after run       │
+  │                  │                      │ completes                    │
+  ├──────────────────┼──────────────────────┼──────────────────────────────┤
+  │ Start            │ ✓ Running… + freezes │ after run completes locks    │
+  │ cherry-pick      │  whole setup         │ the whole step (🔒) — use    │
+  │                  │                      │ New session to run again     │
+  ├──────────────────┼──────────────────────┼──────────────────────────────┤
+  │ Pop stash /      │ ✓ Popping… /         │ one-shot, stays disabled     │
+  │ Delete progress  │ Deleting…            │ after success                │
+  ├──────────────────┼──────────────────────┼──────────────────────────────┤
+  │ New session      │ guarded (refuses     │                              │
+  │ (header +        │ mid-run, confirms)   │ — resets everything          │
+  │ summary)         │                      │                              │
+  ├──────────────────┼──────────────────────┼──────────────────────────────┤
+  │ Modal options /  │ guarded against      │ — closes on click            │
+  │ review buttons   │ double-response      │                              │
+  └──────────────────┴──────────────────────┴──────────────────────────────┘
+
+  What changed for your two reported buttons:
+  - Analyze & build plan — now locks itself the moment the plan is built. Only
+  Reorder and Start stay active. (Options like push/run mode stay editable since
+  they're applied at Start; to rebuild the plan use 🔄 New session.)
+  - Start cherry-pick — shows a 🌀 Running… spinner and freezes the setup while
+  running, then locks the whole step (🔒 badge) once the run finishes, so it
+  can't be re-triggered by accident. Starting another batch goes through New 
+  session. If a run is aborted without a summary, Start/Reorder re-enable so you
+  can retry.
+
+  app.js passes the syntax check. Reload the desktop tool (Ctrl+R) to pick up
+  the changes.
+
+✻ Churned for 3m 46s
+
+> here found like the user merging porcess is on going that time user are       
+  confuse process is running or not so need t oshow some thing to user porcesss 
+  is ongoing                                                                    
+
+● Good catch — during a long-running step (especially a merge that takes time),
+  there's no obvious "it's working" signal, so the user can't tell if it's stuck
+  or busy. Let me add a clear, animated "in progress" banner in the Progress
+  area, make the active-commit icon spin, and animate the progress bar while
+  running.
+
+  Read 1 file (ctrl+o to expand)
+
+> here while the merging time commit merging is on going that time user confuse 
+  like processs is on gong or not need to show some thing to user idenrfy thje  
+  process is on goign                                                           
+
+● Update(frontend\index.html)
+  ⎿  Added 6 lines
+      122          <h2>Progress</h2>
+      123          <div id="progressMeta" class="mono small muted"></div>
+      124        </div>
+      125 +      <!-- live "process is running" banner -->               
+      126 +      <div id="runStatus" class="runstatus hidden">           
+      127 +        <span class="spin"></span>                            
+      128 +        <span id="runStatusText">Cherry-pick in progress…</spa
+          +n>                                                            
+      129 +        <span id="runDots" class="dots"></span>               
+      130 +      </div>                                                  
+      131        <div id="progressBarWrap" class="pbar hidden"><div id="p
+           rogressBar"></div></div>
+      132        <ul id="progressList" class="plist"></ul>
+      133  
+
+● Now the CSS — a prominent animated banner, a spinning active-commit icon, and
+  a striped/animated progress bar while running:
+
+● Update(frontend\styles.css)
+  ⎿  Added 26 lines
+      165  .field-locked { opacity: .55 !important; cursor: not-allowed !
+           important; }
+      166  input.field-locked, textarea.field-locked { background: var(--
+           panel); }
+      167  
+      168 +/* ---- live "process is running" banner ---- */              
+      169 +.runstatus {                                                  
+      170 +  display: flex; align-items: center; gap: 10px;              
+      171 +  background: #15233a; border: 1px solid var(--cyan); border-r
+          +adius: 8px;                                                   
+      172 +  padding: 10px 14px; margin: 4px 0 2px; font-size: 13px; font
+          +-weight: 600; color: var(--cyan);                             
+      173 +}                                                             
+      174 +.runstatus .spin { width: 15px; height: 15px; border-width: 2p
+          +x; border-color: rgba(91,200,216,.35); border-top-color: var(-
+          +-cyan); margin: 0; }                                          
+      175 +.runstatus.waiting { background: #2a2310; border-color: var(--
+          +yellow); color: var(--yellow); }                              
+      176 +.runstatus.waiting .spin { animation: none; border-color: var(
+          +--yellow); border-top-color: var(--yellow); }                 
+      177 +/* animated trailing dots */                                  
+      178 +.dots::after { content: ''; animation: dots 1.4s steps(4, end)
+          + infinite; }                                                  
+      179 +@keyframes dots { 0% { content: ''; } 25% { content: '.'; } 50
+          +% { content: '..'; } 75% { content: '...'; } }                
+      180 +                                                              
+      181 +/* the commit currently being picked: pulse + spinning icon */
+      182 +.plist li.picking { background: rgba(91, 200, 216, .08); }    
+      183 +.plist li.picking .ic { display: inline-block; animation: spin
+          + .8s linear infinite; }                                       
+      184 +                                                              
+      185 +/* progress bar gets animated stripes while a run is active */
+      186 +.pbar.active #progressBar {                                   
+      187 +  background-image: linear-gradient(45deg,                    
+      188 +    rgba(255,255,255,.18) 25%, transparent 25%, transparent 50
+          +%,                                                            
+      189 +    rgba(255,255,255,.18) 50%, rgba(255,255,255,.18) 75%, tran
+          +sparent 75%, transparent);                                    
+      190 +  background-size: 22px 22px; animation: stripes 1s linear inf
+          +inite;                                                        
+      191 +}                                                             
+      192 +@keyframes stripes { from { background-position: 0 0; } to { b
+          +ackground-position: 22px 0; } }                               
+      193 +                                                              
+      194  /* ---- setup column frozen while a cherry-pick run is in prog
+           ress ---- */
+      195  .setup.run-active { pointer-events: none; }
+      196  .setup.run-active .step:not(.locked):not(.done) { opacity: .6;
+            }
+● Now let me check how/when the backend emits picking progress so the banner
+  shows during the long merge operation:
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+● Confirmed — the backend emits the picking event before the (potentially long)
+  merge runs, so the banner will correctly show "in progress" throughout the
+  merge. Now let me wire it up in app.js. First the setRunStatus helper next to
+  freezeSetup:
+
+● Update(frontend\app.js)
+  ⎿  Added 19 lines
+      72      document.querySelector('.setup').classList.toggle('run-acti
+          ve', on);
+      73    }
+      74  
+      75 +  // Show / update / hide the live "process is running" banner 
+         +so the user can                                                
+      76 +  // always tell whether a cherry-pick is actively working, pau
+         +sed, or finished.                                              
+      77 +  //   mode: 'running' | 'waiting' | 'hide'                    
+      78 +  function setRunStatus(mode, text) {                          
+      79 +    const el = $('runStatus');                                 
+      80 +    const bar = $('progressBarWrap');                          
+      81 +    if (mode === 'hide') {                                     
+      82 +      el.classList.add('hidden');                              
+      83 +      bar.classList.remove('active');                          
+      84 +      return;                                                  
+      85 +    }                                                          
+      86 +    el.classList.remove('hidden');                             
+      87 +    el.classList.toggle('waiting', mode === 'waiting');        
+      88 +    $('runStatusText').textContent = text ||                   
+      89 +      (mode === 'waiting' ? 'Paused — waiting for your response
+         +' : 'Cherry-pick in progress');                                
+      90 +    $('runDots').style.display = mode === 'waiting' ? 'none' : 
+         +'';                                                            
+      91 +    bar.classList.toggle('active', mode === 'running');   // an
+         +imated stripes only while running                              
+      92 +  }                                                            
+      93 +                                                               
+      94    // Reset the whole wizard to a fresh state so the user can ru
+          n another batch
+      95    // WITHOUT closing & reopening the tool. The repo path text i
+          s kept (same repo,
+      96    // most likely) but re-validated; everything downstream is cl
+          eared & re-locked.
+
+● Now show it when Start is clicked. Let me view the start handler:
+
+  Read 1 file (ctrl+o to expand)
+
+● Update(frontend\app.js)
+  ⎿  Added 1 line
+      466      $('progressList').innerHTML = '';
+      467      $('summary').classList.add('hidden');
+      468      $('progressBarWrap').classList.remove('hidden');
+      469 +    setRunStatus('running', 'Starting cherry-pick…');         
+      470      const config = {
+      471        repoPath: state.repoPath,
+      472        branch: state.branch,
+
+● Update(frontend\app.js)
+  ⎿  Added 1 line
+      485        if (startBtnLabel) btn.innerHTML = startBtnLabel;
+      486        $('reorderBtn').disabled = false;
+      487        freezeSetup(false);
+      488 +      setRunStatus('hide');                                   
+      489      });
+      490    });
+      491  
+
+● Now update onProgress to drive the banner text, and onAwait to show the paused
+  state. Let me view them:
+
+  Read 1 file (ctrl+o to expand)
+
+● Update(frontend\app.js)
+  ⎿  Added 14 lines
+      507      $('progressMeta').textContent = `${e.current} / ${e.total}
+           `;
+      508      const pct = Math.round(((e.status === 'picking' ? e.curren
+           t - 1 : e.current) / e.total) * 100);
+      509      $('progressBar').style.width = pct + '%';
+      510 +    // Keep the live banner in sync with what's happening righ
+          +t now.                                                        
+      511 +    if (e.status === 'picking') {                             
+      512 +      setRunStatus('running', `Cherry-picking ${e.current}/${e
+          +.total}: ${e.commit.shortHash} — ${e.commit.subject}`);       
+      513 +    } else {                                                  
+      514 +      setRunStatus('running', `Processed ${e.current}/${e.tota
+          +l} — continuing`);                                            
+      515 +    }                                                         
+      516    }
+      517  
+      518    function onAwait(e) {
+      519 +    // The engine has paused for a human decision — make that 
+          +obvious.                                                      
+      520 +    const waitText = {                                        
+      521 +      merge: 'Paused — choose how to handle the merge commit',
+      522 +      conflict: 'Paused — resolve the conflict, then continue'
+          +,                                                             
+      523 +      push: 'Paused — push failed, choose what to do',        
+      524 +      review: 'Paused — review the combined diff',            
+      525 +    };                                                        
+      526 +    setRunStatus('waiting', waitText[e.kind]);                
+      527      if (e.kind === 'merge') return modalMerge(e);
+      528      if (e.kind === 'conflict') return modalConflict(e);
+      529      if (e.kind === 'push') return modalPush(e);
+
+● When the user answers a modal, the engine resumes — reflect that immediately:
+
+  Read 1 file (ctrl+o to expand)
+
+● Update(frontend\app.js)
+  ⎿  Added 1 line
+      539      // Guard against a double-click sending two responses for 
+           one prompt.
+      540      if ($('modalOverlay').classList.contains('hidden')) return
+           ;
+      541      hideModal();
+      542 +    setRunStatus('running', 'Resuming…');     // engine picks 
+          +back up after the response                                    
+      543      T.fire('respond', { token, payload });
+      544    }
+      545  
+
+● Now hide the banner when the run finishes — in onSummary, the done backstop,
+  and resetSession:
+
+● Update(frontend\app.js)
+  ⎿  Added 1 line
+      616      const c = e.counters;
+      617      if (startBtnLabel) $('startBtn').innerHTML = startBtnLabel
+           ;
+      618      freezeSetup(false);                       // run finished 
+           — unfreeze the column
+      619 +    setRunStatus('hide');                     // stop the "in 
+          +progress" banner                                              
+      620      // Run is done: lock the whole order/start step (Analyze, 
+           Reorder, Start).
+      621      // To run another batch the user clicks "Start new session
+           ".
+      622      completeStep('step-order');
+
+● Update(frontend\app.js)
+  ⎿  Added 1 line
+      183        $('reorderBtn').disabled = false;
+      184        freezeSetup(false);
+      185      }
+      186 +    setRunStatus('hide');                                     
+      187    });
+      188    T.on('error', (e) => { appendLog('error', e.message); alert(
+           'Error: ' + e.message); });
+      189  
+
+● Now resetSession — hide the banner there too:
+
+● Update(frontend\app.js)
+  ⎿  Added 1 line
+      128      $('progressMeta').textContent = '';
+      129      $('progressBar').style.width = '0';
+      130      $('progressBarWrap').classList.add('hidden');
+      131 +    setRunStatus('hide');                                     
+      132      $('summary').classList.add('hidden');
+      133      $('summary').innerHTML = '';
+      134  
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Done. Now while a cherry-pick (including a slow merge) is running, the user
+  gets unmistakable "it's working" feedback. Here's what shows up in the
+  Progress panel:
+
+  A live status banner (right under the "Progress" heading):
+  - While working — cyan banner with a spinning circle + animated trailing dots,
+  showing exactly what's happening:
+  🌀 Cherry-picking 3/10: abc1234 — <commit subject>...
+  This text appears before the merge git command runs and stays up for the whole
+  (possibly long) merge — so the user always knows it's busy, not frozen.
+  - When paused for input — the banner turns yellow and the spinner stops: e.g.
+  Paused — resolve the conflict, then continue / Paused — choose how to handle 
+  the merge commit. So the user can tell the difference between "still chugging"
+  and "it needs me."
+  - On finish — banner disappears and the summary appears.
+
+  Plus two supporting cues:
+  - The active commit row in the list now pulses and its ⟳ icon spins while that
+  commit is being picked.
+  - The progress bar shows animated moving stripes while a run is active (static
+  when done).
+
+  The banner is driven across the whole lifecycle: shown on Start (Starting 
+  cherry-pick…), updated on every progress event, switched to yellow on any
+  pause/await, set to Resuming… the instant you answer a prompt, and hidden on
+  completion / abort / new session.
+
+  Backend check confirmed this works for the merge case: core/session.js emits
+  the picking event before the blocking cherry-pick/merge command, so the
+  animated banner is visible throughout the merge.
+
+  app.js passes the syntax check; index.html and styles.css updated. Reload the 
+  desktop tool (Ctrl+R) to see it.
+
+✻ Worked for 2m 53s

@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cherry-Pick Studio — Guide</title>
+<style>
+  :root{
+    --bg:#0f1419; --panel:#1a212b; --panel2:#222b38; --line:#2c3744;
+    --text:#d7e0ea; --muted:#8a98a8; --accent:#e0556b; --accent2:#f08699;
+    --ok:#4caf7d; --warn:#e0a23c; --bad:#e0556b; --info:#5b9bd5;
+    --code:#0b0f14; --radius:12px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:linear-gradient(180deg,#0d1117,#0f1419 240px);
+    color:var(--text); font:15px/1.65 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  }
+  .wrap{max-width:1040px; margin:0 auto; padding:0 22px 90px}
+  code,kbd,pre{font-family:"Cascadia Code",Consolas,"Courier New",monospace}
+
+  /* header */
+  header.hero{
+    padding:46px 0 30px; border-bottom:1px solid var(--line); margin-bottom:34px;
+  }
+  .hero .logo{font-size:54px; line-height:1}
+  .hero h1{margin:14px 0 6px; font-size:34px; letter-spacing:.3px}
+  .hero p{margin:0; color:var(--muted); font-size:17px}
+  .pills{margin-top:18px; display:flex; gap:8px; flex-wrap:wrap}
+  .pill{background:var(--panel2); border:1px solid var(--line); color:var(--muted);
+    padding:4px 11px; border-radius:999px; font-size:12.5px}
+
+  /* table of contents */
+  nav.toc{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px 20px; margin-bottom:38px;
+  }
+  nav.toc h3{margin:0 0 10px; font-size:13px; text-transform:uppercase; letter-spacing:1px; color:var(--muted)}
+  nav.toc ol{margin:0; padding-left:20px; columns:2; column-gap:34px}
+  nav.toc a{color:var(--accent2); text-decoration:none}
+  nav.toc a:hover{text-decoration:underline}
+
+  section{margin-bottom:46px}
+  h2{font-size:23px; margin:0 0 8px; padding-top:8px; display:flex; align-items:center; gap:10px}
+  h2 .dot{width:9px;height:9px;border-radius:50%;background:var(--accent)}
+  h3{font-size:17px; margin:26px 0 8px; color:var(--accent2)}
+  p{margin:10px 0}
+  .lead{color:var(--muted); font-size:16px}
+
+  a{color:var(--accent2)}
+
+  /* cards / callouts */
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:18px 20px; margin:16px 0}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+  @media(max-width:760px){.grid{grid-template-columns:1fr} nav.toc ol{columns:1}}
+  .callout{border-left:4px solid var(--info); background:var(--panel); padding:12px 16px; border-radius:8px; margin:16px 0}
+  .callout.warn{border-color:var(--warn)}
+  .callout.bad{border-color:var(--bad)}
+  .callout.ok{border-color:var(--ok)}
+  .callout b{color:var(--text)}
+
+  /* code blocks */
+  pre{background:var(--code); border:1px solid var(--line); border-radius:10px; padding:14px 16px; overflow-x:auto; font-size:13.5px}
+  pre .c{color:#5d6b7a} /* comment */
+  pre .k{color:var(--accent2)}
+  p code,li code,td code{background:var(--code); border:1px solid var(--line); padding:1px 6px; border-radius:5px; font-size:13px; color:#e7c98a}
+  kbd{background:var(--panel2); border:1px solid var(--line); border-bottom-width:2px; border-radius:5px; padding:1px 7px; font-size:12px}
+
+  /* tables */
+  table{width:100%; border-collapse:collapse; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:9px 12px; text-align:left; vertical-align:top}
+  th{background:var(--panel2); color:var(--text); font-weight:600}
+  tr:nth-child(even) td{background:rgba(255,255,255,.02)}
+  .tag{display:inline-block; padding:1px 8px; border-radius:5px; font-size:12px; font-weight:600}
+  .t-ok{background:rgba(76,175,125,.18); color:#7fd6a8}
+  .t-no{background:rgba(224,85,107,.18); color:var(--accent2)}
+  .t-na{background:rgba(138,152,168,.16); color:var(--muted)}
+
+  /* steps */
+  ol.flow{counter-reset:s; list-style:none; padding:0; margin:10px 0}
+  ol.flow>li{position:relative; padding:14px 16px 14px 56px; background:var(--panel); border:1px solid var(--line); border-radius:10px; margin:10px 0}
+  ol.flow>li::before{counter-increment:s; content:counter(s); position:absolute; left:14px; top:14px;
+    width:28px;height:28px; background:var(--accent); color:#1a0d10; font-weight:700; border-radius:50%;
+    display:flex; align-items:center; justify-content:center; font-size:14px}
+  ol.flow b{color:var(--text)}
+
+  /* arch diagram */
+  .diagram{background:var(--code); border:1px solid var(--line); border-radius:10px; padding:18px; overflow-x:auto}
+  .diagram pre{background:none; border:none; padding:0; color:#9fb3c8; line-height:1.5}
+
+  hr{border:none; border-top:1px solid var(--line); margin:30px 0}
+  .muted{color:var(--muted)}
+  .foot{color:var(--muted); font-size:13px; text-align:center; padding-top:20px; border-top:1px solid var(--line)}
+  .kbtn{display:inline-block;background:var(--accent);color:#1a0d10;font-weight:700;padding:3px 10px;border-radius:6px;font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div class="logo">🍒</div>
+    <h1>Cherry-Pick Studio</h1>
+    <p>A browser &amp; desktop UI for automating git cherry-picks into a client branch — the graphical successor to the <code>cherry-pick-tool.sh</code> CLI.</p>
+    <div class="pills">
+      <span class="pill">Node.js + Express</span>
+      <span class="pill">Electron desktop</span>
+      <span class="pill">Shared git engine</span>
+      <span class="pill">Auto free-port</span>
+      <span class="pill">Windows launchers</span>
+    </div>
+  </header>
+
+  <nav class="toc">
+    <h3>Contents</h3>
+    <ol>
+      <li><a href="#what">What it is</a></li>
+      <li><a href="#prereq">Prerequisites</a></li>
+      <li><a href="#run">How to run</a></li>
+      <li><a href="#launchers">The 3 launchers explained</a></li>
+      <li><a href="#combined">Combined launcher logic</a></li>
+      <li><a href="#arch">Architecture &amp; flow</a></li>
+      <li><a href="#workflow">Using the UI (5 steps)</a></li>
+      <li><a href="#modes">Run modes &amp; push strategies</a></li>
+      <li><a href="#features">Feature list</a></li>
+      <li><a href="#logs">Logs &amp; where they go</a></li>
+      <li><a href="#multi">Multiple instances / repos</a></li>
+      <li><a href="#files">Folder structure</a></li>
+      <li><a href="#trouble">Troubleshooting</a></li>
+    </ol>
+  </nav>
+
+  <!-- ============================================================ -->
+  <section id="what">
+    <h2><span class="dot"></span>What it is</h2>
+    <p class="lead">Cherry-Pick Studio takes a list of commit IDs and applies them, in the correct chronological order, onto a client branch — then pushes. It replaces the fragile interactive Bash script with a real UI that handles merge commits, conflicts, push retries, dry-runs, reviews, and crash-resume.</p>
+    <div class="grid">
+      <div class="card">
+        <h3 style="margin-top:0">Two ways to run it</h3>
+        <p><b>🌐 Web</b> — opens in your browser (Express + WebSocket server).</p>
+        <p><b>🖥️ Desktop</b> — the same UI packaged as an Electron app.</p>
+        <p class="muted">Both share <b>one git engine</b> and <b>one frontend</b> — only the transport differs.</p>
+        <p style="margin-bottom:0"><b>You only need one of them</b> — each works completely on its own. See <a href="#run">How to run</a>.</p>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">Why a UI instead of the script</h3>
+        <p>The CLI had a swallowed merge-commit menu, a review-mode conflict bug, a global <code>set -e</code> leak, and resume blind-spots. The UI <b>designs these out</b> — decisions happen in dialogs, not fragile terminal prompts.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <section id="prereq">
+    <h2><span class="dot"></span>Prerequisites</h2>
+    <table>
+      <tr><th>Tool</th><th>Needed for</th><th>Notes</th></tr>
+      <tr><td><b>Git</b></td><td>All git operations</td><td>Must be on your <code>PATH</code> (<code>git --version</code> works).</td></tr>
+      <tr><td><b>Node.js</b> (v18+)</td><td>Web server &amp; Electron</td><td>Install from <a href="https://nodejs.org/">nodejs.org</a>. The launchers auto-detect it.</td></tr>
+      <tr><td><b>npm dependencies</b></td><td>Express, ws, Electron</td><td>Installed automatically on first launch (<code>npm install</code>).</td></tr>
+    </table>
+    <div class="callout"><b>You don't need to run anything manually.</b> The <code>.bat</code> launchers check Node, install dependencies if missing, then start the app.</div>
+  </section>
+
+  <!-- ============================================================ -->
+  <section id="run">
+    <h2><span class="dot"></span>How to run</h2>
+
+    <div class="callout ok"><b>You only need to run ONE of them.</b> The web app and the desktop app are two complete, independent versions of the <em>same</em> tool — not a pair that must run together. Each has its own built-in backend and the same git engine inside it. Pick whichever you prefer:
+      <ul style="margin:8px 0 0">
+        <li><b>Web only</b> (<code>run-cherry-pick-studio.bat</code>) → works completely on its own. You do <b>not</b> need the desktop.</li>
+        <li><b>Desktop only</b> (<code>run-desktop.bat</code>) → works completely on its own. You do <b>not</b> need the web.</li>
+        <li><b>Both</b> (<code>run-all.bat</code>) → only if you specifically want both windows open at once. It is a convenience, not a requirement.</li>
+      </ul>
+    </div>
+    <div class="callout"><b>Web users:</b> keep the server console window open while you use the browser UI — that window <em>is</em> the backend. Closing it stops the web app.</div>
+
+    <p>Everything is a double-click. Three Windows launchers live in the project root:</p>
+    <table>
+      <tr><th>File</th><th>What it starts</th></tr>
+      <tr><td><span class="kbtn">run-all.bat</span></td><td><b>Both</b> — web + desktop (recommended). Starts only what isn't already running.</td></tr>
+      <tr><td><span class="kbtn">run-cherry-pick-studio.bat</span></td><td>Web (browser) UI only.</td></tr>
+      <tr><td><span class="kbtn">run-desktop.bat</span></td><td>Desktop (Electron) app only.</td></tr>
+    </table>
+
+    <h3>To run BOTH (what you asked for)</h3>
+    <ol class="flow">
+      <li><b>Double-click <code>run-all.bat</code>.</b> That's it — it launches the desktop app <em>and</em> the browser UI in one go.</li>
+      <li>A console window appears, checks Node + dependencies, then: the <b>Electron window opens</b>, and your <b>browser opens</b> to <code>http://localhost:&lt;free-port&gt;</code>.</li>
+      <li>The web server keeps running in its own console window — <b>leave it open</b> while you use the browser UI. Close that window to stop the web server.</li>
+    </ol>
+    <div class="callout ok"><b>Prefer separate windows?</b> Double-click <code>run-desktop.bat</code> and <code>run-cherry-pick-studio.bat</code> individually. They are fully independent.</div>
+
+    <h3>Manual / developer commands</h3>
+    <pre><span class="c"># from the project folder</span>
+npm install        <span class="c"># once — install dependencies</span>
+npm run web        <span class="c"># browser UI  (http://localhost:4317 by default)</span>
+npm run desktop    <span class="c"># Electron desktop app</span>
+npm test           <span class="c"># self-test: real repo + remote + cherry-pick</span></pre>
+  </section>
+
+  <!-- ============================================================ -->
+  <section id="launchers">
+    <h2><span class="dot"></span>The 3 launchers explained</h2>
+    <p>The <code>.bat</code> files are thin wrappers; the real logic lives in <code>studio.ps1</code> (one PowerShell engine) so quoting and port handling are reliable even with spaces in the path.</p>
+    <pre>run-all.bat                  ──►  powershell ... studio.ps1 -Mode all
+run-cherry-pick-studio.bat   ──►  powershell ... studio.ps1 -Mode web
+run-desktop.bat              ──►  powershell ... studio.ps1 -Mode desktop</pre>
+
+    <h3>Each launcher does:</h3>
+    <ol class="flow">
+      <li><b>Find Node.js</b> (via <code>PATH</code>, then standard install folders). Errors with the download link if missing.</li>
+      <li><b>Ensure dependencies</b> — runs <code>npm install</code> automatically if <code>node_modules</code> is absent.</li>
+      <li><b>Web:</b> asks the OS for a <b>free TCP port</b>, starts the server with that port, waits ~2s, opens the browser. <b>Desktop:</b> launches the Electron binary with the app folder.</li>
+    </ol>
+
+    <div class="callout"><b>No fixed port.</b> The web UI never hard-codes a port. It requests a free one from the OS each launch, so a port already used by another process can never block it. If a server is already running, the launcher detects its actual port and just re-opens the browser there.</div>
+  </section>
+
+  <!-- ============================================================ -->
+  <section id="combined">
+    <h2><span class="dot"></span>Combined launcher logic (<code>run-all.bat</code>)</h2>
+    <p>It checks the web and desktop <b>independently</b> and starts <b>only what is missing</b>. So if one was killed, re-running <code>run-all.bat</code> brings back just that one.</p>
+    <table>
+      <tr><th>Web running?</th><th>Desktop running?</th><th>What run-all does</th></tr>
+      <tr><td><span class="tag t-ok">yes</span></td><td><span class="tag t-ok">yes</span></td><td>Starts nothing — re-opens the browser to the running server.</td></tr>
+      <tr><td><span class="tag t-ok">yes</span></td><td><span class="tag t-no">killed</span></td><td>Starts <b>only the desktop</b>.</td></tr>
+      <tr><td><span class="tag t-no">killed</span></td><td><span class="tag t-ok">yes</span></td><td>Starts <b>only the web</b> (on a fresh free port).</td></tr>
+      <tr><td><span class="tag t-no">killed</span></td><td><span class="tag t-no">killed</span></td><td>Starts <b>both</b>.</td></tr>
+    </table>
+    <p class="muted">Detection: a web instance = a <code>node.exe</code> running <code>...cherry-pick-studio...server.js</code> (its listening port is read back via <code>Get-NetTCPConnection</code>). A desktop instance = an <code>electron.exe</code> whose path is inside the project.</p>
+  </section>
+
+  <!-- ============================================================ -->
+  <section id="arch">
+    <h2><span class="dot"></span>Architecture &amp; flow</h2>
+    <p>One git engine, two transports, one shared frontend. The web server speaks <b>WebSocket</b>; Electron speaks <b>IPC</b> — both feed the identical <code>core/bridge.js</code>, so all behaviour lives in one place.</p>
+
+    <div class="diagram"><pre>
+                         ┌───────────────────────────────┐
+                         │      SHARED FRONTEND          │
+                         │  frontend/ index.html app.js   │
+                         │  + transport.js (auto-detect)  │
+                         └───────────────┬───────────────┘
+              WebSocket  /ws             │            IPC (preload.js)
+            ┌────────────────────────────┴────────────────────────────┐
+            │                                                          │
+   ┌────────▼─────────┐                                     ┌──────────▼─────────┐
+   │  WEB BACKEND      │                                     │  DESKTOP (Electron)│
+   │  server/server.js │                                     │  desktop-electron/ │
+   │  Express + ws     │                                     │  main.js + preload │
+   └────────┬─────────┘                                     └──────────┬─────────┘
+            │                                                          │
+            └───────────────────────────┬──────────────────────────────┘
+                                         │  createBridge(send)
+                            ┌────────────▼─────────────┐
+                            │      CORE ENGINE          │
+                            │  core/bridge.js  (router)  │
+                            │  core/session.js (state)   │
+                            │  core/git.js     (git ops) │
+                            └────────────┬─────────────┘
+                                         │  execFile('git', …, {cwd: repoPath})
+                                  ┌──────▼───────┐
+                                  │  YOUR GIT     │
+                                  │  REPOSITORY   │
+                                  └──────────────┘
+    </pre></div>
+
+    <h3>Layer responsibilities</h3>
+    <table>
+      <tr><th>Layer</th><th>Files</th><th>Role</th></tr>
+      <tr><td>Frontend</td><td><code>frontend/*</code></td><td>The UI. <code>transport.js</code> auto-detects Electron-IPC vs browser-WebSocket.</td></tr>
+      <tr><td>Web backend</td><td><code>server/server.js</code></td><td>Express static host + WebSocket bridge. One bridge per connection.</td></tr>
+      <tr><td>Desktop</td><td><code>desktop-electron/main.js</code>, <code>preload.js</code></td><td>Electron window loading the same frontend; bridge over IPC.</td></tr>
+      <tr><td>Router</td><td><code>core/bridge.js</code></td><td>Maps client commands (preflight, analyze, start, respond…) to git/session calls.</td></tr>
+      <tr><td>Run engine</td><td><code>core/session.js</code></td><td>Pausable state machine. Streams <code>log / progress / await / summary / done</code> events; pauses for human decisions.</td></tr>
+      <tr><td>Git ops</td><td><code>core/git.js</code></td><td>Stateless git functions, each scoped to <code>cwd: repoPath</code>. No global state.</td></tr>
+    </table>
+
+    <h3>How a run flows</h3>
+    <ol class="flow">
+      <li><b>Pre-flight</b> — validate the repo path, detect pending merge/rebase/cherry-pick, report a dirty working tree (offer auto-stash).</li>
+      <li><b>Branch</b> — fetch, confirm the branch exists on origin, warn about unpushed local commits, optionally check out fresh from remote.</li>
+      <li><b>Commits</b> — validate format, drop duplicates, resolve each ID, flag not-found.</li>
+      <li><b>Plan</b> — sort commits oldest→newest by timestamp, detect already-applied ones (exact hash + bounded patch-id scan), let you reorder.</li>
+      <li><b>Run</b> — the session cherry-picks each commit, <b>pausing</b> to ask you about merge parents, conflicts, and push failures; streams progress + a live log; writes a resume file after every commit.</li>
+    </ol>
+  </section>
+
+  <!-- ============================================================ -->
+  <section id="workflow">
+    <h2><span class="dot"></span>Using the UI — 5 steps</h2>
+    <ol class="flow">
+      <li><b>Repository</b> — type/paste (or Browse, in desktop) the path to your git repo and click <em>Check</em>. Abort any pending op or auto-stash uncommitted changes here.</li>
+      <li><b>Client branch</b> — enter the branch (e.g. <code>client/acme-release-2026Q1</code>), <em>Check</em> it against origin, optionally <em>Check out fresh from remote</em>.</li>
+      <li><b>Commits</b> — paste commit IDs (comma or space separated) and <em>Validate</em>. Bad/duplicate/missing IDs are flagged.</li>
+      <li><b>Options</b> — choose push strategy, run mode, and an optional custom log folder.</li>
+      <li><b>Review &amp; order</b> — <em>Analyze &amp; build plan</em> sorts commits and marks already-applied ones; reorder if needed, then <span class="kbtn">▶ Start cherry-pick</span>.</li>
+    </ol>
+    <p>The right column shows a live <b>progress bar</b>, a per-commit status list, a final <b>summary</b>, and the running <b>log</b>. Decisions (merge parent, conflict, push retry, review commit) appear as modal dialogs.</p>
+  </section>
+
+  <!-- ============================================================ -->
+  <section id="modes">
+    <h2><span class="dot"></span>Run modes &amp; push strategies</h2>
+    <div class="grid">
+      <div class="card">
+        <h3 style="margin-top:0">Run modes</h3>
+        <p><b>Normal</b> — cherry-pick and commit each commit individually.</p>
+        <p><b>Dry run</b> — simulate only; reports what <em>would</em> happen (incl. merge prompts), changes nothing, writes a dry-run log.</p>
+        <p><b>Review</b> — apply all with <code>--no-commit</code> so everything stacks as staged changes; at the end you review the combined diff and commit it as <b>one</b> commit (or discard).</p>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">Already-applied scan depth <em>(Step 4)</em></h3>
+        <p>Controls how many of the target branch's recent commits are <b>patch-id scanned</b> to detect commits already applied under a <em>different</em> hash (e.g. a previous cherry-pick).</p>
+        <p><b>Blank = 200</b> (default). Higher = catches older duplicates but slower. <b>0 = exact-hash match only</b> — fastest, skips the patch scan entirely.</p>
+        <p class="muted" style="margin-bottom:0">Tip: on very deep branches, lowering this is the single biggest speed-up for the Analyze step.</p>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">Push strategies</h3>
+        <p><b>Push after each</b> <em>(safer)</em> — pulls (ff-only) and pushes after every commit; smallest blast radius on failure.</p>
+        <p><b>Batch at end</b> <em>(faster)</em> — one push after all commits succeed.</p>
+        <p class="muted" style="margin-bottom:0">On push rejection you get a dialog: <b>retry</b>, <b>force-with-lease</b>, <b>skip</b>, or <b>abort</b>.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <section id="features">
+    <h2><span class="dot"></span>Feature list</h2>
+    <table>
+      <tr><th>Area</th><th>What it does</th></tr>
+      <tr><td>Repo pre-flight</td><td>Validates path &amp; git repo; detects in-progress merge/rebase/cherry-pick; reports modified/untracked counts.</td></tr>
+      <tr><td>Auto-stash</td><td>Stashes uncommitted changes (incl. untracked) before running; pop offered afterward.</td></tr>
+      <tr><td>Branch safety</td><td>Fetches origin, verifies remote branch, <b>warns about unpushed local commits</b> before a fresh re-checkout.</td></tr>
+      <tr><td>Commit validation</td><td>Format check, duplicate removal, existence check, not-found reporting.</td></tr>
+      <tr><td>Chronological ordering</td><td>Sorts commits oldest→newest by author timestamp so history applies cleanly.</td></tr>
+      <tr><td>Already-applied detection</td><td>Skips commits already on the branch via exact-hash + bounded patch-id scan (reports the depth scanned). The <b>scan depth is tunable</b> in Step 4 — see below.</td></tr>
+      <tr><td>Merge-commit handling</td><td>Detects merges and asks which parent (mainline <code>-m 1/2</code>) to follow — or skip.</td></tr>
+      <tr><td>Conflict resolver</td><td>Lists conflicted files; re-checks for leftover <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code> markers; resolve / skip / abort.</td></tr>
+      <tr><td>Push retry</td><td>retry / force-with-lease / skip / abort on rejected pushes.</td></tr>
+      <tr><td>Crash resume</td><td>Writes <code>.cherry-pick-progress</code> after each commit; offers to resume an interrupted session.</td></tr>
+      <tr><td>Logging</td><td>Timestamped log per run inside the tool's own <code>logs/</code> folder (see <a href="#logs">Logs &amp; where they go</a>), or a custom folder.</td></tr>
+      <tr><td>Self-test</td><td><code>npm test</code> spins up a real repo + bare remote and exercises the engine end-to-end.</td></tr>
+    </table>
+  </section>
+
+  <!-- ============================================================ -->
+  <section id="multi">
+    <h2><span class="dot"></span>Running multiple instances / repos</h2>
+    <div class="callout ok"><b>Different repos → fully isolated.</b> Open as many browser tabs / windows as you like, each pointing at a <b>different</b> repository — they do not affect each other.</div>
+    <p>Why it's safe: each connection gets its own session (no shared global state), the repo path travels with every command, git runs scoped to each repo's own folder (<code>cwd: repoPath</code>), and logs are written per-repo. One web server happily serves many tabs at once — each tab is its own independent session.</p>
+    <div class="callout bad"><b>Same repo, twice, at the same time → will conflict.</b> Not because of this app — git itself has only one working tree, one <code>HEAD</code>, and one <code>.git/index.lock</code> per repo. Two concurrent cherry-pick/checkout runs on the <em>same</em> folder will clash.</div>
+    <p><b>Rule of thumb:</b> different repos in parallel = safe; the same repo in parallel = run one at a time.</p>
+  </section>
+
+  <!-- ============================================================ -->
+  <section id="logs">
+    <h2><span class="dot"></span>Logs &amp; where they go</h2>
+    <p>Every run is logged <b>inside the tool's own folder</b> — <b>not</b> in your target repository. The main folder is created automatically:</p>
+    <pre>cherry-pick-studio/
+└── logs/
+    └── <span class="k">19-06-2026_AM</span>/                 <span class="c"># PARENT — one per date + half-day (DD-MM-YYYY_AM|PM)</span>
+        ├── <span class="k">11-41-32_AM</span>/             <span class="c"># SUBFOLDER — a fresh one for each run (hh-mm-ss_AM|PM)</span>
+        │   ├── cherry-pick-log.txt   <span class="c"># full run log (each line timestamped + repo path)</span>
+        │   └── .cherry-pick-progress <span class="c"># resume state, rewritten after every commit</span>
+        └── <span class="k">11-41-35_AM</span>/             <span class="c"># the next run that day → its own subfolder</span>
+            └── ...</pre>
+    <table>
+      <tr><th>Item</th><th>Detail</th></tr>
+      <tr><td>Main folder</td><td><code>&lt;cherry-pick-studio&gt;/logs/</code> — created on first run.</td></tr>
+      <tr><td>Parent folder</td><td>Per date + half-day: <code>DD-MM-YYYY_AM</code> / <code>DD-MM-YYYY_PM</code> (e.g. <code>19-06-2026_AM</code>).</td></tr>
+      <tr><td>Run subfolder</td><td><b>A new subfolder for every run</b>, named by start time <code>hh-mm-ss_AM|PM</code> (e.g. <code>11-41-32_AM</code>). Same-second runs get a <code>_2</code>, <code>_3</code> suffix.</td></tr>
+      <tr><td>Log file</td><td><code>cherry-pick-log.txt</code> (or <code>dry-run-log.txt</code> in dry-run mode). Header records the <b>repository path</b>; each line carries the exact time.</td></tr>
+      <tr><td>Resume file</td><td><code>.cherry-pick-progress</code> — records the repo path + branch and lets an interrupted run be resumed.</td></tr>
+      <tr><td>Custom location</td><td>Set a path in <b>Step 4 → Log folder</b> to override the default base.</td></tr>
+    </table>
+    <div class="callout ok"><b>Each run is isolated.</b> Runs are grouped under the day's parent folder, and every run gets its own timestamped subfolder — so logs never mix. The log header also records which repository the run targeted.</div>
+    <div class="callout ok"><b>Why the tool folder?</b> Your repositories stay clean — no <code>cherry-pick-logs</code> directory is ever written into them. All logs from all repos collect in one predictable place.</div>
+  </section>
+
+  <!-- ============================================================ -->
+  <section id="files">
+    <h2><span class="dot"></span>Folder structure</h2>
+    <pre>cherry-pick-studio/
+├── <span class="k">run-all.bat</span>                  <span class="c"># launch BOTH (web + desktop)</span>
+├── <span class="k">run-cherry-pick-studio.bat</span>   <span class="c"># launch web only</span>
+├── <span class="k">run-desktop.bat</span>              <span class="c"># launch desktop only</span>
+├── studio.ps1                   <span class="c"># shared launch engine (port pick, detection)</span>
+├── package.json
+├── docs/
+│   └── Cherry-Pick-Studio-Guide.html  <span class="c"># this file</span>
+├── core/
+│   ├── git.js          <span class="c"># stateless git operations</span>
+│   ├── session.js      <span class="c"># pausable run state machine</span>
+│   ├── bridge.js       <span class="c"># command router (shared)</span>
+│   └── selftest.js     <span class="c"># npm test</span>
+├── server/
+│   └── server.js       <span class="c"># Express + WebSocket (web backend)</span>
+├── desktop-electron/
+│   ├── main.js         <span class="c"># Electron main process</span>
+│   └── preload.js      <span class="c"># safe IPC bridge to renderer</span>
+├── frontend/
+│   ├── index.html
+│   ├── app.js
+│   ├── styles.css
+│   └── transport.js    <span class="c"># WS vs IPC auto-detect</span>
+├── logs/               <span class="c"># run logs — date_AM|PM parent → per-run subfolder (auto-created)</span>
+└── web-flask/          <span class="c"># placeholder (Python port — not built)</span></pre>
+  </section>
+
+  <!-- ============================================================ -->
+  <section id="trouble">
+    <h2><span class="dot"></span>Troubleshooting</h2>
+
+    <h3>"Electron failed to install correctly"</h3>
+    <p>Electron's binary download didn't finish. Re-install just Electron:</p>
+    <pre>cd /d "D:\Piyush Katariya\Piyush Katariya\DEMO\cherry-pick-studio"
+npm install electron --force</pre>
+    <p class="muted">The binary must exist at <code>node_modules\electron\dist\electron.exe</code>.</p>
+
+    <h3>Desktop error: "Unable to find Electron app at D:\Piyush"</h3>
+    <p>Caused by spaces in the path not being quoted. This is already fixed in <code>studio.ps1</code> — make sure you launch via the <code>.bat</code> files (not a hand-typed command that drops the quotes).</p>
+
+    <h3>Browser didn't open / port question</h3>
+    <p>The web UI picks a free port automatically, so "port in use" can't block it. The exact URL is printed in the server console window (e.g. <code>http://localhost:59964</code>). If a server is already running, <code>run-all.bat</code> re-opens the browser to it.</p>
+
+    <h3>"running scripts is disabled on this system" (PowerShell)</h3>
+    <p>The launchers already pass <code>-ExecutionPolicy Bypass</code>, so the <code>.bat</code> files work regardless of your global policy. Always start from the <code>.bat</code>, not by double-clicking the <code>.ps1</code>.</p>
+
+    <h3>Node.js not found</h3>
+    <p>Install it from <a href="https://nodejs.org/">nodejs.org</a> and re-run. The launcher checks <code>PATH</code> and the standard <code>C:\Program Files\nodejs</code> location.</p>
+
+    <h3>Stop the app</h3>
+    <p>Close the Electron window to quit the desktop app. Close the server console window (or press <kbd>Ctrl</kbd>+<kbd>C</kbd> in it) to stop the web server.</p>
+  </section>
+
+  <p class="foot">🍒 Cherry-Pick Studio — local documentation. Open this file any time by double-clicking it.</p>
+
+</div>
+</body>
+</html>

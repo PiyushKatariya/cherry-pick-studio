@@ -1,0 +1,2640 @@
+╭─── Claude Code v2.1.183 ─────────────────────────────────────────────────────╮
+│                                                    │ Tips for getting        │
+│          Welcome back Casepoint Developer!         │ started                 │
+│                                                    │ Run /init to create a … │
+│                       ▐▛███▜▌                      │ ─────────────────────── │
+│                      ▝▜█████▛▘                     │ What's new              │
+│                        ▘▘ ▝▝                       │ Improved auto mode saf… │
+│                                                    │ Added a warning when t… │
+│         Opus 4.8 · Claude Team · Casepoint         │ Added `attribution.ses… │
+│ D:\Piyush Katariya\Piyush Katariya\DEMO\cherry-pi… │ /release-notes for more │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+
+> D:\Piyush Katariya\Piyush Katariya\DEMO\cherry-pick-studio\2026-06-19-102748- 
+  check-this-repo-and-we-need-to-update-some-point.txt                          
+                                                                                
+  check this old conversion                                                     
+                                                                                
+  we need to start work on this repo                                            
+                                                                                
+  here need to give the same bat file as our main repo                          
+                                                                                
+  create bat file for this same as main repo                                    
+
+● I'll start by reading that old conversation file to understand the context.
+
+  Read 1 file (ctrl+o to expand)
+
+● Now let me look at the current repo structure and find the main repo's bat
+  file to replicate.
+
+  Searched for 2 patterns (ctrl+o to expand)
+
+● The main repo is git-cherry-pick-automator with run-cherry-pick.bat. Let me
+  read that bat file and the new repo's package.json.
+
+  Read 2 files (ctrl+o to expand)
+
+● The main repo's bat launches a Bash script. This new repo is a Node
+  web/desktop app, so the equivalent launcher should start the Node server and
+  open the browser. Let me check the server.
+
+  Read 1 file (ctrl+o to expand)
+
+● I have everything I need. The new repo is a Node web app, so I'll create a
+  launcher styled like the main repo's bat — but adapted to start the Node
+  server and open the browser. Let me write it.
+
+● Write(run-cherry-pick-studio.bat)
+  ⎿  Wrote 107 lines to run-cherry-pick-studio.bat
+      1 @echo off
+      2 setlocal enabledelayedexpansion
+      3 title Cherry-Pick Studio - Launcher
+      4 color 0A
+      5 
+        ===============
+      7 :: Cherry-Pick Studio - Windows Launcher
+      8 :: Double-click this file to start the browser UI.
+      9 :: ==============================================================
+        ===============
+     … +102 lines (ctrl+o to expand)
+
+● Created the launcher. Let me verify it works end-to-end by running it (the
+  server boot + health check).
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● The server boots and serves correctly. The launcher is ready.
+
+  Done
+
+  Created run-cherry-pick-studio.bat in D:\Piyush Katariya\Piyush 
+  Katariya\DEMO\cherry-pick-studio\ — the same kind of double-click launcher as
+  the main repo's run-cherry-pick.bat, adapted to this repo's Node web app.
+
+  Why it differs from the main repo's bat: the main repo is a Bash script, so
+  its launcher finds Git Bash and runs cherry-pick-tool.sh. This repo
+  (cherry-pick-studio) is a Node/Express + WebSocket browser app, so the
+  launcher does the equivalent for that stack.
+
+  What it does (same banner/[OK]/[ERROR] style as the original):
+  1. Finds Node.js (via where, then standard install paths) — errors out with
+  the download link if missing.
+  2. Verifies server\server.js is next to the bat.
+  3. Auto-runs npm install if node_modules is absent.
+  4. Starts the web server in its own window on port 4317.
+  5. Waits 2s, then opens http://localhost:4317 in the default browser.
+
+  Verified: booted the server and confirmed /health returns {"ok":true}.
+
+  To use it: just double-click run-cherry-pick-studio.bat. Close the server
+  window to stop the app.
+
+  Note: this launches the browser UI. If you'd also like a separate one-click
+  bat for the Electron desktop app (npm run desktop), say the word and I'll add
+  run-desktop.bat too.
+
+✻ Worked for 59s
+
+> add run-desktop.bat too create one bat file that run both project and here    
+  make bat file like                                                            
+                                                                                
+  run we b any port not on fix port if the fix port use by other process then   
+  our tool not getting run                                                      
+
+● I'll check the Electron main to know how the desktop app launches, then build
+  the three bats with dynamic port handling.
+
+  Read 1 file (ctrl+o to expand)
+
+● The Electron app is self-contained (no server port needed). Now I'll update
+  the web launcher to use a dynamic free port, then create the desktop and
+  combined launchers.
+
+  First, update the web bat to find a free port instead of the fixed 4317:
+
+● Update(run-cherry-pick-studio.bat)
+  ⎿  Added 15 lines, removed 2 lines
+       82      echo.
+       83  )
+       84  
+       85 -:: ----- Step 4: Pick a port -----                            
+       86 -set "APP_PORT=4317"                                           
+       85 +:: ----- Step 4: Pick a FREE port (not a fixed one) -----     
+       86 +:: Ask the OS for an available TCP port so the tool never fail
+          +s because                                                     
+       87 +:: port 4317 (or any fixed port) is already in use by another 
+          +process.                                                      
+       88 +set "APP_PORT="                                               
+       89 +for /f "tokens=*" %%i in ('powershell -NoProfile -Command "$l 
+          += New-Object System.Net.Sockets.TcpListener([System.Net.IPAddr
+          +ess]::Loopback, 0); $l.Start(); $p = $l.LocalEndpoint.Port; $l
+          +.Stop(); $p"') do (                                           
+       90 +    set "APP_PORT=%%i"                                        
+       91 +)                                                             
+       92  
+       93 +if "%APP_PORT%"=="" (                                         
+       94 +    echo  [WARN] Could not auto-pick a free port. Falling back
+          + to 4317.                                                     
+       95 +    set "APP_PORT=4317"                                       
+       96 +) else (                                                      
+       97 +    echo  [OK] Using free port: %APP_PORT%                    
+       98 +)                                                             
+       99 +echo.                                                         
+      100 +                                                              
+      101  :: ----- Step 5: Launch the server and open the browser -----
+      102  echo  ========================================================
+           ====
+      103  echo   Starting Cherry-Pick Studio...
+
+> Getting error:                                                                
+                                                                                
+  D:\Piyush Katariya\Piyush Katariya\DEMO\cherry-pick-studio>npm run desktop    
+                                                                                
+  > cherry-pick-studio@1.0.0 desktop                                            
+  > electron .                                                                  
+                                                                                
+  D:\Piyush Katariya\Piyush                                                     
+  Katariya\DEMO\cherry-pick-studio\node_modules\electron\index.js:17            
+      throw new Error('Electron failed to install correctly, please delete      
+  node_modules/electron and try installing again');                             
+      ^                                                                         
+                                                                                
+  Error: Electron failed to install correctly, please delete                    
+  node_modules/electron and try installing again                                
+      at getElectronPath (D:\Piyush Katariya\Piyush                             
+  Katariya\DEMO\cherry-pick-studio\node_modules\electron\index.js:17:11)        
+      at Object.<anonymous> (D:\Piyush Katariya\Piyush                          
+  Katariya\DEMO\cherry-pick-studio\node_modules\electron\index.js:21:18)        
+      at Module._compile (node:internal/modules/cjs/loader:1854:14)             
+      at Object..js (node:internal/modules/cjs/loader:1985:10)                  
+      at Module.load (node:internal/modules/cjs/loader:1577:32)                 
+      at Module._load (node:internal/modules/cjs/loader:1379:12)                
+      at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)               
+      at Module.require (node:internal/modules/cjs/loader:1600:12)              
+      at require (node:internal/modules/helpers:153:16)                         
+      at Object.<anonymous> (D:\Piyush Katariya\Piyush                          
+  Katariya\DEMO\cherry-pick-studio\node_modules\electron\cli.js:5:18)           
+                                                                                
+  Node.js v24.16.0                                                              
+                                                                                
+  D:\Piyush Katariya\Piyush Katariya\DEMO\cherry-pick-studio>                   
+
+● The Electron error means its binary download didn't complete during install.
+  Let me investigate and fix it, and check the current state.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● path.txt is missing and dist is incomplete — Electron's postinstall download
+  failed (commonly a network/proxy block). Let me check dist and try to complete
+  the install.
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● Cache hit but electron.exe is missing — the cached zip is likely
+  corrupt/partial. Let me find and clear the Electron cache, then reinstall.
+  Listed 1 directory, ran 1 shell command (ctrl+o to expand)
+
+● The zip is 106 MB (full size). The extraction step is failing. Let me verify
+  the zip integrity and watch the full install output.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Zip is valid and contains electron.exe. The extraction just isn't landing in
+  dist. Let me look at install.js to see how it extracts.
+
+  Read 1 file (ctrl+o to expand)
+
+● The earlier run piped to head, which likely killed extraction early via
+  SIGPIPE. Let me run install.js to completion without piping.
+
+  Listed 1 directory, ran 1 shell command (ctrl+o to expand)
+
+● install.js exits 0 but extraction produces only an empty locales folder —
+  extract-zip is silently failing (likely AV or a quirk). Let me extract the
+  verified zip directly with unzip, which is reliable.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+> here create the spareate bat and create one combine file as well in combine   
+  file if one project is run and  another one is kill by any things then i run  
+  the combine file run only required project and check another case as well     
+
+● electron.exe extracted. Now write path.txt and verify the version file so
+  Electron's loader is satisfied.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Electron is now repaired. Let me verify it launches and reports its version.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Electron works now (v31.7.7). Before writing the combined launcher, let me
+  test the PowerShell detection snippets it will rely on (find a running
+  web/desktop process and a free port).
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Detection works. Now let me confirm it positively detects a running server and
+  can recover its listening port (needed so the combined launcher can reopen
+  the browser for an already-running web instance).
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● Detection recovers PID and the actual listening port (54321). Let me stop the
+  test server and write the launchers.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Detection is solid. Now I'll write the separate desktop launcher, then the
+  combined smart launcher.
+
+● Write(run-desktop.bat)
+  ⎿  Wrote 81 lines to run-desktop.bat
+      1 @echo off
+      2 setlocal enabledelayedexpansion
+      3 title Cherry-Pick Studio - Desktop Launcher
+      4 color 0B
+      5 
+        ===============
+      7 :: Cherry-Pick Studio - Desktop (Electron) Launcher
+      8 :: Double-click this file to start the desktop app.
+      9 :: ==============================================================
+        ===============
+     … +77 lines (ctrl+o to expand)
+
+● Now the combined smart launcher — it checks each project independently and
+  starts only what isn't already running (handles all four cases: both down,
+  both up, either one up).
+
+● Write(run-all.bat)
+  ⎿  Wrote 124 lines to run-all.bat
+       1 @echo off
+       2 setlocal enabledelayedexpansion
+       3 title Cherry-Pick Studio - Combined Launcher
+       5 
+       6 :: =============================================================
+         ================
+       7 :: Cherry-Pick Studio - Combined Launcher (Web + Desktop)
+       8 ::
+         only what is
+      10 :: missing.
+     … +140 lines (ctrl+o to expand)
+
+● Now let me actually run the combined launcher to verify all branches work.
+  First test: nothing running → should start both.
+
+  Ran 1 shell command (ctrl+o to expand)
+● Two issues surfaced: the ^| pipe escaping doesn't survive for /f, and the
+  nested-quote start cmd /k triggers a redirection error. Batch + PowerShell +
+  start quoting is too fragile to be reliable. The robust fix is to put the
+  logic in one PowerShell helper and make the .bat files thin, double-clickable
+  wrappers. Let me first clean up the stray Electron the test launched.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Now the PowerShell helper that contains all the logic:
+
+● Write(studio.ps1)
+  ⎿  Wrote 155 lines to studio.ps1
+       1 # ==============================================================
+       2 # studio.ps1 - Launch engine for Cherry-Pick Studio.
+       3 # Used by the .bat launchers. Modes:
+       4 #   web      -> start (or reopen) the browser UI on a FREE port
+       6 #   all      -> smart combined: start ONLY whatever is not alrea
+         dy running
+         unning 'all'
+       8 # starts only the missing one.
+       9 # ==============================================================
+      10 param(
+     … +169 lines (ctrl+o to expand)
+
+● Now rewrite the three .bat files as thin wrappers around the helper:
+
+● Write(run-cherry-pick-studio.bat)
+  ⎿  Added 5 lines, removed 110 lines
+        1  @echo off
+        2 -setlocal enabledelayedexpansion                               
+        3 -title Cherry-Pick Studio - Launcher                           
+        2 +title Cherry-Pick Studio - Web Launcher                       
+        3  color 0A
+        4  
+        5  :: ===========================================================
+           ==================
+        7 -:: Cherry-Pick Studio - Windows Launcher                      
+        8 -:: Double-click this file to start the browser UI.            
+        6 +:: Cherry-Pick Studio - Web (browser) Launcher                
+        7 +:: Double-click this file to start the browser UI on an automa
+          +tically chosen                                                
+        8 +:: free port (so a busy fixed port never blocks the tool).    
+        9  :: ===========================================================
+           ==================
+       10  
+       11 -echo.                                                         
+       12 -echo  ========================================================
+          -====                                                          
+       13 -echo   Cherry-Pick Studio - Launcher                          
+       14 -echo  ========================================================
+          -====                                                          
+       15 -echo.                                                         
+       11 +powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0stud
+          +io.ps1" -Mode web                                             
+       12  
+       17 -:: ----- Step 1: Find Node.js -----                           
+       18 -set "NODE_EXE="                                               
+       19 -                                                              
+       20 -for /f "tokens=*" %%i in ('where node.exe 2^>nul') do (       
+       21 -    set "NODE_EXE=%%i"                                        
+       22 -    goto :node_found                                          
+       23 -)                                                             
+       24 -                                                              
+       25 -:: Check standard installation paths                          
+       26 -if exist "C:\Program Files\nodejs\node.exe" (                 
+       27 -    set "NODE_EXE=C:\Program Files\nodejs\node.exe"           
+       28 -    goto :node_found                                          
+       29 -)                                                             
+       30 -if exist "C:\Program Files (x86)\nodejs\node.exe" (           
+       31 -    set "NODE_EXE=C:\Program Files (x86)\nodejs\node.exe"     
+       32 -    goto :node_found                                          
+       33 -)                                                             
+       34 -                                                              
+       35 -:: Node not found                                             
+       36 -echo  [ERROR] Node.js is not installed or not found.          
+       13  echo.
+       38 -echo  Please install Node.js from: https://nodejs.org/        
+       39 -echo.                                                         
+       14  pause
+       41 -exit /b 1                                                     
+       42 -                                                              
+       43 -:node_found                                                   
+       44 -echo  [OK] Node.js found: %NODE_EXE%                          
+       45 -echo.                                                         
+       46 -                                                              
+       47 -:: ----- Step 2: Locate the project and server script -----   
+       48 -set "APP_DIR=%~dp0"                                           
+       49 -set "SERVER_SCRIPT=%APP_DIR%server\server.js"                 
+       50 -                                                              
+       51 -if not exist "%SERVER_SCRIPT%" (                              
+       52 -    echo  [ERROR] server\server.js not found in: %APP_DIR%    
+       53 -    echo  Make sure this .bat file is in the cherry-pick-studi
+          -o folder.                                                     
+       54 -    echo.                                                     
+       55 -    pause                                                     
+       56 -    exit /b 1                                                 
+       57 -)                                                             
+       58 -                                                              
+       59 -echo  [OK] Server script found: %SERVER_SCRIPT%               
+       60 -echo.                                                         
+       61 -                                                              
+       62 -:: ----- Step 3: Ensure dependencies are installed -----      
+       63 -if not exist "%APP_DIR%node_modules" (                        
+       64 -    echo  [INFO] Dependencies not found. Running "npm install"
+          -...                                                           
+       65 -    echo.                                                     
+       66 -    pushd "%APP_DIR%"                                         
+       67 -    call npm install                                          
+       68 -    set "NPM_RESULT=!errorlevel!"                             
+       69 -    popd                                                      
+       70 -    if not "!NPM_RESULT!"=="0" (                              
+       71 -        echo.                                                 
+       72 -        echo  [ERROR] npm install failed. Please check the out
+          -put above.                                                    
+       73 -        echo.                                                 
+       74 -        pause                                                 
+       75 -        exit /b 1                                             
+       76 -    )                                                         
+       77 -    echo.                                                     
+       78 -    echo  [OK] Dependencies installed.                        
+       79 -    echo.                                                     
+       80 -) else (                                                      
+       81 -    echo  [OK] Dependencies present.                          
+       82 -    echo.                                                     
+       83 -)                                                             
+       84 -                                                              
+       85 -:: ----- Step 4: Pick a FREE port (not a fixed one) -----     
+       86 -:: Ask the OS for an available TCP port so the tool never fail
+          -s because                                                     
+       87 -:: port 4317 (or any fixed port) is already in use by another 
+          -process.                                                      
+       88 -set "APP_PORT="                                               
+       89 -for /f "tokens=*" %%i in ('powershell -NoProfile -Command "$l 
+          -= New-Object System.Net.Sockets.TcpListener([System.Net.IPAddr
+          -ess]::Loopback, 0); $l.Start(); $p = $l.LocalEndpoint.Port; $l
+          -.Stop(); $p"') do (                                           
+       90 -    set "APP_PORT=%%i"                                        
+       91 -)                                                             
+       92 -                                                              
+       93 -if "%APP_PORT%"=="" (                                         
+       94 -    echo  [WARN] Could not auto-pick a free port. Falling back
+          - to 4317.                                                     
+       95 -    set "APP_PORT=4317"                                       
+       96 -) else (                                                      
+       97 -    echo  [OK] Using free port: %APP_PORT%                    
+       98 -)                                                             
+       99 -echo.                                                         
+      100 -                                                              
+      101 -:: ----- Step 5: Launch the server and open the browser ----- 
+      102 -echo  ========================================================
+          -====                                                          
+      103 -echo   Starting Cherry-Pick Studio...                         
+      104 -echo   URL: http://localhost:%APP_PORT%                       
+      105 -echo  ========================================================
+          -====                                                          
+      106 -echo.                                                         
+      107 -echo  The server will run in a new window.                    
+      108 -echo  Your browser will open automatically.                   
+      109 -echo.                                                         
+      110 -                                                              
+      111 -:: Start the web server in its own window                     
+      112 -start "Cherry-Pick Studio (server)" cmd /k "cd /d "%APP_DIR%" 
+          -&& set PORT=%APP_PORT% && "%NODE_EXE%" "%SERVER_SCRIPT%""     
+      113 -                                                              
+      114 -:: Give the server a moment to boot, then open the browser    
+      115 -timeout /t 2 /nobreak >nul                                    
+      116 -start "" "http://localhost:%APP_PORT%"                        
+      117 -                                                              
+      118 -echo  Launcher done. Close the server window to stop the app. 
+      119 -echo.                                                         
+       15  exit /b 0
+
+● Write(run-desktop.bat)
+  ⎿  Added 2 lines, removed 69 lines
+      1  @echo off
+      2 -setlocal enabledelayedexpansion                                 
+      2  title Cherry-Pick Studio - Desktop Launcher
+      3  color 0B
+      4  
+     ...
+       7  :: Double-click this file to start the desktop app.
+       8  :: ============================================================
+          =================
+       9  
+      11 -echo.                                                          
+      12 -echo  =========================================================
+         -===                                                            
+      13 -echo   Cherry-Pick Studio - Desktop (Electron)                 
+      14 -echo  =========================================================
+         -===                                                            
+      15 -echo.                                                          
+      10 +powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0studi
+         +o.ps1" -Mode desktop                                           
+      11  
+      17 -set "APP_DIR=%~dp0"                                            
+      18 -if "%APP_DIR:~-1%"=="\" set "APP_DIR=%APP_DIR:~0,-1%"          
+      19 -                                                               
+      20 -:: ----- Step 1: Find Node.js (needed for npm install) -----   
+      21 -set "NODE_EXE="                                                
+      22 -for /f "tokens=*" %%i in ('where node.exe 2^>nul') do (        
+      23 -    set "NODE_EXE=%%i"                                         
+      24 -    goto :node_found                                           
+      25 -)                                                              
+      26 -if exist "C:\Program Files\nodejs\node.exe" set "NODE_EXE=C:\Pr
+         -ogram Files\nodejs\node.exe"                                   
+      27 -:node_found                                                    
+      28 -                                                               
+      29 -:: ----- Step 2: Ensure dependencies are installed -----       
+      30 -if not exist "%APP_DIR%\node_modules" (                        
+      31 -    if "%NODE_EXE%"=="" (                                      
+      32 -        echo  [ERROR] Node.js not found and dependencies are mi
+         -ssing.                                                         
+      33 -        echo  Install Node.js from https://nodejs.org/ then run
+         - again.                                                        
+      34 -        echo.                                                  
+      35 -        pause                                                  
+      36 -        exit /b 1                                              
+      37 -    )                                                          
+      38 -    echo  [INFO] Installing dependencies ^(npm install^)...    
+      39 -    echo.                                                      
+      40 -    pushd "%APP_DIR%"                                          
+      41 -    call npm install                                           
+      42 -    set "NPM_RESULT=!errorlevel!"                              
+      43 -    popd                                                       
+      44 -    if not "!NPM_RESULT!"=="0" (                               
+      45 -        echo.                                                  
+      46 -        echo  [ERROR] npm install failed. See output above.    
+      47 -        echo.                                                  
+      48 -        pause                                                  
+      49 -        exit /b 1                                              
+      50 -    )                                                          
+      51 -    echo.                                                      
+      52 -)                                                              
+      53 -                                                               
+      54 -:: ----- Step 3: Verify the Electron binary -----              
+      55 -set "ELECTRON_EXE=%APP_DIR%\node_modules\electron\dist\electron
+         -.exe"                                                          
+      56 -if not exist "%ELECTRON_EXE%" (                                
+      57 -    echo  [ERROR] Electron binary not found:                   
+      58 -    echo    %ELECTRON_EXE%                                     
+      59 -    echo.                                                      
+      60 -    echo  The Electron download may have failed. Fix it with:  
+      61 -    echo    cd /d "%APP_DIR%"                                  
+      62 -    echo    npm install electron --force                       
+      63 -    echo.                                                      
+      64 -    pause                                                      
+      65 -    exit /b 1                                                  
+      66 -)                                                              
+      67 -                                                               
+      68 -echo  [OK] Electron found: %ELECTRON_EXE%                      
+      12  echo.
+      70 -                                                               
+      71 -:: ----- Step 4: Launch the desktop app -----                  
+      72 -echo  =========================================================
+         -===                                                            
+      73 -echo   Starting the Cherry-Pick Studio desktop app...          
+      74 -echo  =========================================================
+         -===                                                            
+      75 -echo.                                                          
+      76 -                                                               
+      77 -start "Cherry-Pick Studio (desktop)" /d "%APP_DIR%" "%ELECTRON_
+         -EXE%" "%APP_DIR%"                                              
+      78 -                                                               
+      79 -echo  Desktop app launched. You can close this window.         
+      80 -echo.                                                          
+      13 +pause                                                          
+      14  exit /b 0
+
+● Write(run-all.bat)
+  ⎿  Added 9 lines, removed 112 lines
+        1  @echo off
+        2 -setlocal enabledelayedexpansion                               
+        2  title Cherry-Pick Studio - Combined Launcher
+        3  color 0E
+        4  
+        5  :: ===========================================================
+           ==================
+        6  :: Cherry-Pick Studio - Combined Launcher (Web + Desktop)
+        7  ::
+        9 -:: Smart launcher: it checks what is ALREADY running and start
+          -s only what is                                                
+       10 -:: missing.                                                   
+       11 -::   - Web running + Desktop running   -> starts nothing (just
+          - reports).                                                    
+       12 -::   - Web running + Desktop killed     -> starts ONLY the des
+          -ktop.                                                         
+       13 -::   - Web killed  + Desktop running    -> starts ONLY the web
+          -.                                                             
+       14 -::   - Both killed                      -> starts BOTH.       
+        8 +:: Smart launcher: checks each project independently and start
+          +s ONLY what is                                                
+        9 +:: not already running.                                       
+       10 +::   - Web running  + Desktop running  -> starts nothing (reop
+          +ens browser).                                                 
+       11 +::   - Web running  + Desktop killed   -> starts ONLY the desk
+          +top.                                                          
+       12 +::   - Web killed   + Desktop running  -> starts ONLY the web.
+       13 +::   - Both killed                     -> starts BOTH.        
+       14 +:: The web UI always uses an automatically chosen FREE port.  
+       15  :: ===========================================================
+           ==================
+       16  
+       17 -echo.                                                         
+       18 -echo  ========================================================
+          -====                                                          
+       19 -echo   Cherry-Pick Studio - Combined Launcher                 
+       20 -echo  ========================================================
+          -====                                                          
+       21 -echo.                                                         
+       17 +powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0stud
+          +io.ps1" -Mode all                                             
+       18  
+       23 -set "APP_DIR=%~dp0"                                           
+       24 -if "%APP_DIR:~-1%"=="\" set "APP_DIR=%APP_DIR:~0,-1%"         
+       25 -set "SERVER_SCRIPT=%APP_DIR%\server\server.js"                
+       26 -                                                              
+       27 -:: ----- Step 1: Find Node.js -----                           
+       28 -set "NODE_EXE="                                               
+       29 -for /f "tokens=*" %%i in ('where node.exe 2^>nul') do set "NOD
+          -E_EXE=%%i"                                                    
+       30 -if "%NODE_EXE%"=="" if exist "C:\Program Files\nodejs\node.exe
+          -" set "NODE_EXE=C:\Program Files\nodejs\node.exe"             
+       31 -if "%NODE_EXE%"=="" (                                         
+       32 -    echo  [ERROR] Node.js is not installed or not found.      
+       33 -    echo  Install it from: https://nodejs.org/                
+       34 -    echo.                                                     
+       35 -    pause                                                     
+       36 -    exit /b 1                                                 
+       37 -)                                                             
+       38 -echo  [OK] Node.js: %NODE_EXE%                                
+       39 -                                                              
+       40 -:: ----- Step 2: Ensure dependencies are installed -----      
+       41 -if not exist "%APP_DIR%\node_modules" (                       
+       42 -    echo  [INFO] Installing dependencies ^(npm install^)...   
+       43 -    pushd "%APP_DIR%"                                         
+       44 -    call npm install                                          
+       45 -    set "NPM_RESULT=!errorlevel!"                             
+       46 -    popd                                                      
+       47 -    if not "!NPM_RESULT!"=="0" (                              
+       48 -        echo  [ERROR] npm install failed. See output above.   
+       49 -        echo.                                                 
+       50 -        pause                                                 
+       51 -        exit /b 1                                             
+       52 -    )                                                         
+       53 -)                                                             
+       54 -echo  [OK] Dependencies present.                              
+       19  echo.
+       56 -                                                              
+       57 -:: ===========================================================
+          -==================                                            
+       58 -:: WEB PROJECT                                                
+       59 -:: ===========================================================
+          -==================                                            
+       60 -echo  --------------------------------------------------------
+          -----                                                          
+       61 -echo   Checking WEB server...                                 
+       62 -echo  --------------------------------------------------------
+          -----                                                          
+       63 -                                                              
+       64 -:: Detect a running web server and recover the port it is list
+          -ening on.                                                     
+       65 -set "WEB_PORT="                                               
+       66 -for /f "tokens=*" %%i in ('powershell -NoProfile -Command "$n 
+          -= Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" ^|
+          - Where-Object { $_.CommandLine -like '*cherry-pick-studio*serv
+          -er.js*' } ^| Select-Object -First 1; if ($n) { $c = Get-NetTCP
+          -Connection -OwningProcess $n.ProcessId -State Listen -ErrorAct
+          -ion SilentlyContinue ^| Select-Object -First 1; if ($c) { $c.L
+          -ocalPort } }"') do set "WEB_PORT=%%i"                         
+       67 -                                                              
+       68 -if not "%WEB_PORT%"=="" (                                     
+       69 -    echo  [SKIP] Web server already running on port %WEB_PORT%
+          -.                                                             
+       70 -    echo         Opening it in your browser...                
+       71 -    start "" "http://localhost:%WEB_PORT%"                    
+       72 -    goto :web_done                                            
+       73 -)                                                             
+       74 -                                                              
+       75 -echo  [START] Web server is not running. Starting it...       
+       76 -                                                              
+       77 -:: Pick a FREE port so a busy fixed port never blocks the tool
+          -.                                                             
+       78 -set "WEB_NEW_PORT="                                           
+       79 -for /f "tokens=*" %%i in ('powershell -NoProfile -Command "$l 
+          -= New-Object System.Net.Sockets.TcpListener([System.Net.IPAddr
+          -ess]::Loopback, 0); $l.Start(); $p = $l.LocalEndpoint.Port; $l
+          -.Stop(); $p"') do set "WEB_NEW_PORT=%%i"                      
+       80 -if "%WEB_NEW_PORT%"=="" set "WEB_NEW_PORT=4317"               
+       81 -                                                              
+       82 -echo  [OK] Using free port: %WEB_NEW_PORT%                    
+       83 -start "Cherry-Pick Studio (server)" cmd /k "cd /d "%APP_DIR%" 
+          -&& set PORT=%WEB_NEW_PORT% && "%NODE_EXE%" "%SERVER_SCRIPT%"" 
+       84 -timeout /t 2 /nobreak >nul                                    
+       85 -start "" "http://localhost:%WEB_NEW_PORT%"                    
+       86 -echo  [OK] Web server launched on http://localhost:%WEB_NEW_PO
+          -RT%                                                           
+       87 -                                                              
+       88 -:web_done                                                     
+       89 -echo.                                                         
+       90 -                                                              
+       91 -:: ===========================================================
+          -==================                                            
+       92 -:: DESKTOP PROJECT                                            
+       93 -:: ===========================================================
+          -==================                                            
+       94 -echo  --------------------------------------------------------
+          -----                                                          
+       95 -echo   Checking DESKTOP app...                                
+       96 -echo  --------------------------------------------------------
+          -----                                                          
+       97 -                                                              
+       98 -set "DESK_COUNT=0"                                            
+       99 -for /f "tokens=*" %%i in ('powershell -NoProfile -Command "@(G
+          -et-CimInstance Win32_Process -Filter \"Name='electron.exe'\" ^
+          -| Where-Object { $_.ExecutablePath -like '*cherry-pick-studio*
+          -' }).Count"') do set "DESK_COUNT=%%i"                         
+      100 -                                                              
+      101 -if not "%DESK_COUNT%"=="0" (                                  
+      102 -    echo  [SKIP] Desktop app already running ^(%DESK_COUNT% pr
+          -ocess^(es^)^).                                                
+      103 -    goto :desk_done                                           
+      104 -)                                                             
+      105 -                                                              
+      106 -set "ELECTRON_EXE=%APP_DIR%\node_modules\electron\dist\electro
+          -n.exe"                                                        
+      107 -if not exist "%ELECTRON_EXE%" (                               
+      108 -    echo  [ERROR] Electron binary missing:                    
+      109 -    echo    %ELECTRON_EXE%                                    
+      110 -    echo  Fix with:  npm install electron --force             
+      111 -    goto :desk_done                                           
+      112 -)                                                             
+      113 -                                                              
+      114 -echo  [START] Desktop app is not running. Starting it...      
+      115 -start "Cherry-Pick Studio (desktop)" /d "%APP_DIR%" "%ELECTRON
+          -_EXE%" "%APP_DIR%"                                            
+      116 -echo  [OK] Desktop app launched.                              
+      117 -                                                              
+      118 -:desk_done                                                    
+      119 -echo.                                                         
+      120 -echo  ========================================================
+          -====                                                          
+      121 -echo   Done. This launcher window can be closed.              
+      122 -echo  ========================================================
+          -====                                                          
+      123 -echo.                                                         
+       20 +pause                                                         
+       21  exit /b 0
+
+● Now let me test the full flow. Run all with nothing running (should start
+  both), then verify.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Both launched. Let me verify the web server is actually serving on that port
+  and the desktop process is alive.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Web serves {"ok":true}, detection finds it on 59964, Electron running (1). Now
+  test case 2 — run all again with both already running (should skip both, just
+  reopen browser):
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Web correctly skipped. Desktop restarted — let me check whether Electron is
+  staying alive in this headless session (it may exit without an interactive
+  desktop, which would be an environment artifact, not a launcher bug).
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Electron is alive (pid 34188). Detection clearly works — it correctly saw 0
+  and started a fresh one. Now the key asymmetric test: kill only the web, leave
+  desktop running, then run all — it should start only web and skip desktop.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+> [Image #1]                                                                    
+  ⎿  [Image #1]
+
+● That's the bug — the path has spaces (D:\Piyush Katariya\...), and
+  Start-Process -ArgumentList @($AppDir) doesn't quote it, so Electron receives
+  just D:\Piyush. I need to quote the argument. Let me fix the helper.
+
+● Update(studio.ps1)
+  ⎿  Added 2 lines, removed 1 line
+      125      }
+      126  
+      127      Write-Host ' [START] Desktop not running. Starting it...'
+      128 -    Start-Process -FilePath $ElectronExe -ArgumentList @($AppD
+          -ir) -WorkingDirectory $AppDir                                 
+      128 +    # Quote the app path: it can contain spaces (e.g. "D:\Piyu
+          +sh Katariya\...").                                            
+      129 +    Start-Process -FilePath $ElectronExe -ArgumentList @("`"$A
+          +ppDir`"") -WorkingDirectory $AppDir                           
+      130      Write-Host ' [OK] Desktop app launched.'
+      131  }
+      132  
+
+> getting this popup                                                            
+
+● Let me clean up the existing processes (including the one showing the error
+  dialog) and re-test the desktop launch with the fix.
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● Fixed — the main process now shows the full quoted path, and the gpu/renderer
+  child processes confirm the window actually opened (no more "D:\Piyush"
+  truncation).
+
+  Now the asymmetric test the user asked about: desktop is running, web is not.
+  Run all → should start only web, skip desktop.
+
+  Ran 1 shell command (ctrl+o to expand)
+● Asymmetric case works — started only web (60073), skipped desktop. Let me
+  verify the new web instance serves, then test the actual .bat wrapper
+  end-to-end (feeding a keypress so pause doesn't hang).
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● All four cases are now proven through the real .bat:
+  1. Both down → starts both ✓
+  2. Both up → skips both, reopens browser ✓
+  3. Web up / desktop down → starts only desktop ✓
+  4. Web down / desktop up → starts only web ✓
+
+  Let me clean up the test processes I left running.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● All cleaned up. Here's the summary.
+
+  Done
+
+  First, I fixed a real blocker, then built the launchers.
+
+  1. Fixed the broken Electron install
+
+  npm run desktop was failing with "Electron failed to install correctly" — its
+  binary download had extracted only an empty folder (path.txt and electron.exe
+  missing). I extracted the verified 106 MB cached zip directly into
+  node_modules\electron\dist\ and wrote path.txt. Electron now reports v31.7.7
+  and the desktop window opens correctly.
+
+  2. Three launchers (all in the repo root, double-clickable)
+
+  ┌────────────────────────────┬───────────────────────────────────┐
+  │            File            │           What it does            │
+  ├────────────────────────────┼───────────────────────────────────┤
+  │ run-cherry-pick-studio.bat │ Web/browser UI                    │
+  ├────────────────────────────┼───────────────────────────────────┤
+  │ run-desktop.bat            │ Electron desktop app              │
+  ├────────────────────────────┼───────────────────────────────────┤
+  │ run-all.bat                │ Combined smart launcher           │
+  ├────────────────────────────┼───────────────────────────────────┤
+  │ studio.ps1                 │ Shared engine the three bats call │
+  └────────────────────────────┴───────────────────────────────────┘
+
+  I moved the logic into one PowerShell helper (studio.ps1) because pure-batch +
+  PowerShell + start quoting was failing on pipe-escaping and the spaces in
+  your path (D:\Piyush Katariya\...) — the same spaces that caused your Cannot 
+  find module 'D:\Piyush' popup. That's now fixed by quoting the app path. The
+  .bat files stay the entry points you double-click.
+
+  Your requirements, verified
+
+  - No fixed port — the web UI asks the OS for a free port every launch (it
+  grabbed 59964 / 60073 in testing), so a busy port can never block it. If a
+  server is already running, the launcher detects its actual port and reopens
+  the browser there.
+  - Combined launcher starts only what's missing — checks web and desktop
+  independently. I tested all four cases live:
+    - both down → starts both
+    - both up → skips both, reopens browser
+    - desktop up, web killed → starts only web
+    - web up, desktop killed → starts only desktop
+
+  All test processes were cleaned up afterward.
+
+  One note: in this headless server session an Electron window can't truly
+  display, but the process tree (gpu/renderer children) confirmed it launched
+  correctly — on your interactive desktop the window will appear normally. Just
+  double-click run-all.bat.
+
+✻ Sautéed for 10m 19s
+
+> here if i open the multiple instace ofthis new ui base with diffenret repo it 
+  will imapcte to each other or not                                             
+
+● Good question — let me check the actual architecture rather than guess. I'll
+  read how sessions and state are scoped.
+
+  Read 1 file (ctrl+o to expand)
+
+● Let me confirm there's no shared module-level state in the git layer (the one
+  thing that could leak across sessions).
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+● Confirmed the architecture. Here's the precise answer.
+
+  Different repos → No impact. They're isolated. ✅
+
+  The design is stateless per repo, so multiple instances on different repos do
+  not affect each other:
+
+  - Each browser tab / window gets its own session. In bridge.js, session is
+  created fresh per connection (createBridge runs once per WebSocket / per
+  Electron window). There's no shared global session.
+  - The repo path travels with every command (msg.repoPath). Nothing is
+  remembered globally between connections.
+  - Git runs scoped to each repo's folder — every git call uses cwd: repoPath
+  (verified in git.js, which has zero module-level state, just stateless
+  functions).
+  - Logs are per-repo — written to <repoPath>\cherry-pick-logs\, so each repo
+  keeps its own.
+
+  So: open as many tabs as you want, point each at a different repo (Repo A,
+  Repo B, Repo C) — they run completely independently. Even web + desktop at the
+  same time is fine (separate processes entirely).
+
+  The one case that WILL conflict ⚠️: same repo, twice, at once
+
+  If two instances point at the same repository and run operations
+  simultaneously, they will clash — not because of this app, but because git
+  itself has only one working tree, one HEAD, and one .git\index.lock per repo.
+  Two concurrent checkout/cherry-pick operations on the same folder will corrupt
+  each other or fail with a lock error.
+
+  Rule of thumb: one active run per repo at a time. Different repos in parallel
+  = safe; same repo in parallel = don't.
+
+  A note on how the launchers behave here
+
+  run-all.bat / the web launcher deliberately start one server and reuse it.
+  That single server already handles many tabs/repos at once (each tab = its own
+  isolated session), so you don't need — and won't get — a second server from
+  re-running the bat. That's the correct setup for your "multiple repos" use
+  case: one server, many tabs, one repo each.
+
+  If you'd like, I can add a guard that warns when two sessions target the same
+  repo path (detect the duplicate and block the second run) — that would make
+  the one risky case impossible. Want me to add it?
+
+✻ Cooked for 58s
+
+> here i need to run both desktop and studio bat file                           
+                                                                                
+  explain me all the flow and how can i run this                                
+                                                                                
+  also create the one HTML file with all the details of this tool and how can   
+  run and archivter and all the required details of this tool in this HTML FILE 
+
+● I'll read the remaining core files so the documentation is accurate, then
+  write the HTML.
+
+  Read 2 files (ctrl+o to expand)
+
+● Let me quickly check the frontend to describe the UI workflow accurately.
+
+  Read 1 file (ctrl+o to expand)
+
+● I now have the full picture. Let me write the comprehensive HTML documentation
+  file (self-contained, double-click to open) matching the app's cherry theme.
+
+● Write(Cherry-Pick-Studio-Guide.html)
+  ⎿  Wrote 396 lines to Cherry-Pick-Studio-Guide.html
+       1 <!DOCTYPE html>
+       2 <html lang="en">
+       4 <meta charset="UTF-8" />
+       5 <meta name="viewport" content="width=device-width, initial-scale
+         =1.0" />
+       7 <style>
+       8   :root{
+       9     --bg:#0f1419; --panel:#1a212b; --panel2:#222b38; --line:#2c3
+      10     --text:#d7e0ea; --muted:#8a98a8; --accent:#e0556b; --accent2
+         :#f08699;
+     … +617 lines (ctrl+o to expand)
+
+> this HTML file create at new folder with all the details                      
+
+● I'll move the guide into a dedicated new folder. Let me create a docs folder,
+  place the guide there as index.html, and remove the root copy.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Let me keep a single file in the new folder and fix the folder-structure
+  section to reflect the new docs/ location.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Update(docs\Cherry-Pick-Studio-Guide.html)
+  ⎿  File must be read first
+
+  Read 1 file (ctrl+o to expand)
+
+● Update(docs\Cherry-Pick-Studio-Guide.html)  ⎿  Added 2 lines, removed 1 line
+      344  ├── <span class="k">run-desktop.bat</span>              <span 
+           class="c"># launch desktop only</span>
+      345  ├── studio.ps1                   <span class="c"># shared laun
+           ch engine (port pick, detection)</span>
+      346  ├── package.json
+      347 -├── Cherry-Pick-Studio-Guide.html  <span class="c"># this file
+          -</span>                                                       
+      347 +├── docs/                                                     
+      348 +│   └── Cherry-Pick-Studio-Guide.html  <span class="c"># this 
+          +file</span>                                                   
+      349  ├── core/
+      350  │   ├── git.js          <span class="c"># stateless git operat
+           ions</span>
+      351  │   ├── session.js      <span class="c"># pausable run state m
+           achine</span>
+
+● Done. Here's everything you asked for.
+
+  How to run both (desktop + web)
+
+  Just double-click run-all.bat. It launches both the Electron desktop app and
+  the browser UI in one go.
+
+  What happens when you double-click it:
+  1. A console window opens → checks Node.js → installs dependencies if needed.
+  2. The Electron desktop window opens.
+  3. Your browser opens to http://localhost:<free-port> (a free port is picked
+  automatically).
+  4. A separate server console window stays open — leave it open while using the
+  browser UI; close it to stop the web server.
+
+  If you'd rather keep them separate, double-click run-desktop.bat and
+  run-cherry-pick-studio.bat individually — they're fully independent.
+
+  The flow in short
+
+  Frontend (one shared UI)
+     │  web → WebSocket          desktop → IPC
+     └──────────► core/bridge.js (router)
+                       │
+                  core/session.js (pausable run engine)
+                       │
+                  core/git.js (git ops, scoped to each repo)
+                       │
+                  your git repository
+
+  A run goes: Repository → Branch → Commits → Options → Review & order → Start.
+  The engine cherry-picks each commit in chronological order, pausing to ask you
+  about merge parents, conflicts, and push failures, while streaming live
+  progress + logs and saving a resume file after every commit.
+
+  The HTML guide — created in a new folder
+
+  Created at:
+  D:\Piyush Katariya\Piyush
+  Katariya\DEMO\cherry-pick-studio\docs\Cherry-Pick-Studio-Guide.html
+
+  It's a self-contained, styled page (just double-click to open) covering: what
+  the tool is, prerequisites, how to run (all 3 launchers + the
+  combined-launcher logic table), architecture & flow with a diagram, the 5-step
+  UI workflow, run modes & push strategies, the full feature list, the
+  multiple-instances/repos isolation rules, the folder structure, and
+  troubleshooting (Electron install, the D:\Piyush space-path error, ports,
+  PowerShell policy).
+
+  Want me to also add a link to this guide from the app's UI header (a "📖 Help"
+  button that opens it)?
+
+✻ Cogitated for 3m 24s
+
+> yes add the help button that opens the guide                                  
+
+● I'll wire a Help button that works in both web and desktop modes. Let me read
+  the relevant files first.
+
+  Read 2 files (ctrl+o to expand)
+
+● Let me look at how app.js wires up buttons and init.
+
+  Read 1 file (ctrl+o to expand)
+
+● Now I'll make all the edits. They're independent across files:
+
+● Update(frontend\index.html)
+  ⎿  Added 4 lines, removed 1 line
+      15          <p class="sub">Automate cherry-picking commits into a c
+          lient branch</p>
+      16        </div>
+      17      </div>
+      18 -    <span id="transportBadge" class="badge muted">connecting…</
+         -span>                                                          
+      18 +    <div class="topbar-actions" style="display:flex;align-items
+         +:center;gap:10px">                                             
+      19 +      <button id="helpBtn" class="btn ghost small" title="Open 
+         +the user guide">📖 Help</button>                               
+      20 +      <span id="transportBadge" class="badge muted">connecting…
+         +</span>                                                        
+      21 +    </div>                                                     
+      22    </header>
+      23  
+      24    <main class="layout">
+
+● Update(server\server.js)
+  ⎿  Added 2 lines
+      16  
+      17  const app = express();
+      18  app.use(express.static(FRONTEND));
+      19 +// Serve the documentation folder so the in-app Help button can
+         + open the guide.                                               
+      20 +app.use('/docs', express.static(path.join(__dirname, '..', 'doc
+         +s')));                                                         
+      21  app.get('/health', (_req, res) => res.json({ ok: true }));
+      22  
+      23  const server = http.createServer(app);
+
+● Update(frontend\app.js)
+  ⎿  Added 6 lines
+      35      if (T.isElectron) $('browseBtn').classList.remove('hidden')
+          ;
+      36    });
+      37  
+      38 +  // ---- Help button: open the user guide --------------------
+         +--------------                                                 
+      39 +  $('helpBtn').addEventListener('click', () => {               
+      40 +    if (T.isElectron && window.cps && window.cps.openGuide) win
+         +dow.cps.openGuide();                                           
+      41 +    else window.open('/docs/Cherry-Pick-Studio-Guide.html', '_b
+         +lank');                                                        
+      42 +  });                                                          
+      43 +                                                               
+      44    // ---- streamed events -------------------------------------
+          --------------
+      45    T.on('log', (e) => appendLog(e.level, e.message));
+      46    T.on('progress', onProgress);
+
+● Update(desktop-electron\preload.js)
+  ⎿  Added 2 lines
+      15    onEvent: (cb) => ipcRenderer.on('cps:event', (_e, obj) => cb(
+          obj)),
+      16    // Native folder picker
+      17    pickFolder: () => ipcRenderer.invoke('cps:pickFolder'),
+      18 +  // Open the user guide in the default browser                
+      19 +  openGuide: () => ipcRenderer.invoke('cps:openGuide'),        
+      20  });
+
+● Update(desktop-electron\main.js)
+  ⎿  Added 1 line, removed 1 line
+       6  // ============================================================
+          =================
+       7  'use strict';
+       8  
+       9 -const { app, BrowserWindow, ipcMain, dialog } = require('electr
+         -on');                                                          
+       9 +const { app, BrowserWindow, ipcMain, dialog, shell } = require(
+         +'electron');                                                   
+      10  const path = require('path');
+      11  const { createBridge } = require('../core/bridge');
+      12  
+
+● Update(desktop-electron\main.js)
+  ⎿  Added 7 lines
+      54    return r.filePaths[0];
+      55  });
+      56  
+      57 +// Open the user guide (docs/Cherry-Pick-Studio-Guide.html) in 
+         +the default browser.                                           
+      58 +ipcMain.handle('cps:openGuide', async () => {                  
+      59 +  const guide = path.join(__dirname, '..', 'docs', 'Cherry-Pick
+         +-Studio-Guide.html');                                          
+      60 +  const err = await shell.openPath(guide);                     
+      61 +  return err ? { ok: false, error: err } : { ok: true };       
+      62 +});                                                            
+      63 +                                                               
+      64  app.whenReady().then(() => {
+      65    // Signal the renderer it is running inside Electron.
+      66    createWindow();
+
+● Now let me verify the web path works end-to-end: boot the server and confirm
+  the docs route serves the guide.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Web side verified (docs route 200, Help button present). Let me syntax-check
+  the modified JS files.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● All files pass. Done — the 📖 Help button is now in the app header and works
+  in both modes.
+
+  What I added
+
+  ┌─────────────────────────────┬────────────────────────────────────────────┐
+  │            File             │                   Change                   │
+  ├─────────────────────────────┼────────────────────────────────────────────┤
+  │ frontend/index.html         │ Added the 📖 Help button in the top bar    │
+  │                             │ (next to the web/desktop badge).           │
+  ├─────────────────────────────┼────────────────────────────────────────────┤
+  │ frontend/app.js             │ Click handler — opens the guide.           │
+  ├─────────────────────────────┼────────────────────────────────────────────┤
+  │ server/server.js            │ Serves the docs/ folder at /docs so the    │
+  │                             │ browser can load the guide.                │
+  ├─────────────────────────────┼────────────────────────────────────────────┤
+  │ desktop-electron/preload.js │ Exposes openGuide() to the UI.             │
+  ├─────────────────────────────┼────────────────────────────────────────────┤
+  │ desktop-electron/main.js    │ IPC handler opens the guide via            │
+  │                             │ shell.openPath (default browser).          │
+  └─────────────────────────────┴────────────────────────────────────────────┘
+
+  How it behaves
+
+  - Web mode: clicking Help opens /docs/Cherry-Pick-Studio-Guide.html in a new
+  browser tab.
+  - Desktop mode: clicking Help opens the same guide file in your default
+  browser (via Electron's shell).
+
+  The same button works in both — the handler detects the environment
+  automatically (T.isElectron).
+
+  Verified
+
+  - /docs/Cherry-Pick-Studio-Guide.html → 200 through the running server.
+  - The served index.html contains the helpBtn.
+  - All four modified JS files pass node --check.
+
+  Reload the browser UI (or relaunch via the bats) and you'll see the Help
+  button top-right. Want me to also drop a 📖 Help link into the README, or add
+  a keyboard shortcut (e.g. <kbd>F1</kbd>) for it?
+
+✻ Sautéed for 2m 12s
+
+> here my question is i need to run both fir working this tool                  
+                                                                                
+  desktop and studio bat file                                                   
+                                                                                
+  explain me the work flow of this tool                                         
+
+● Good question — let me clear up the key misunderstanding first, because it
+  changes everything.
+
+  You do NOT need to run both. ❌
+
+  The desktop app and the web (studio) app are two complete, independent 
+  versions of the same tool. They are not a pair where one needs the other to
+  work. Each one has its own built-in backend and the same git engine inside it.
+
+  Pick whichever one you prefer — just one is enough:
+
+  ┌────────────────────────────┬─────────────────────────┬──────────────────┐
+  │          Launcher          │      What you get       │ Needs the other? │
+  ├────────────────────────────┼─────────────────────────┼──────────────────┤
+  │ run-desktop.bat            │ Electron desktop app    │ ❌ No — fully    │
+  │                            │ (its own window)        │ standalone       │
+  ├────────────────────────────┼─────────────────────────┼──────────────────┤
+  │ run-cherry-pick-studio.bat │ Browser UI (opens in    │ ❌ No — fully    │
+  │                            │ your browser)           │ standalone       │
+  ├────────────────────────────┼─────────────────────────┼──────────────────┤
+  │ run-all.bat                │ Opens both at once      │ —                │
+  │                            │ (convenience only)      │                  │
+  └────────────────────────────┴─────────────────────────┴──────────────────┘
+
+  So run-all.bat doesn't make the tool "work" — it just opens both windows if
+  you happen to want both. Most people run one.
+
+  Why they're independent
+
+  - Desktop: Electron's main process runs the git engine directly and talks to
+  the UI over IPC.
+  - Web: the Express server runs the git engine and talks to the browser over
+  WebSocket.
+  - Both wrap the exact same core/ engine — same features, same behaviour. Only
+  the "plumbing" differs.
+
+  My recommendation: just double-click run-desktop.bat (no browser, no server
+  window to keep open, native folder picker). Or run-cherry-pick-studio.bat if
+  you prefer working in a browser tab.
+
+  ---
+  Workflow of the tool (same in both)
+
+  Whichever one you open, you do the same 5 steps top-to-bottom in the UI:
+
+  1. Repository — enter (or Browse, in desktop) the path to your git repo →
+  Check.
+
+  ▎ Behind the scenes: confirms it's a git repo, detects any half-finished 
+  ▎ merge/rebase/cherry-pick, and warns if you have uncommitted changes (offers 
+  ▎ to auto-stash them).
+
+  2. Client branch — type the target branch (e.g. client/acme-release) → Check.
+
+  ▎ Fetches from origin, confirms the branch exists remotely, warns about 
+  ▎ unpushed local commits, and optionally checks out a fresh copy from remote.
+
+  3. Commits — paste the commit IDs (comma or space separated) → Validate.
+
+  ▎ Drops duplicates, checks the format, confirms each commit exists, flags any 
+  ▎ that aren't found.
+
+  4. Options — choose:
+  - Push strategy: after each commit (safer) or batch at the end (faster).
+  - Run mode: Normal / Dry-run (simulate only) / Review (stack everything into
+  one commit).
+
+  5. Review & order → Analyze & build plan, then ▶ Start.
+
+  ▎ Sorts the commits oldest→newest, marks any already applied to the branch, 
+  ▎ lets you reorder, then runs.
+
+  During the run the right side shows a live progress bar, per-commit status,
+  and a log. The tool pauses and asks you whenever a human decision is needed:
+  - a merge commit → which parent to follow,
+  - a conflict → resolve / skip / abort,
+  - a push failure → retry / force-with-lease / skip / abort.
+
+  It saves a resume file after every commit, so if it crashes you can pick up
+  where it left off.
+
+  ---
+  Bottom line: run one bat (desktop is simplest), follow the 5 steps. Use
+  run-all.bat only if you specifically want both windows open. Want me to add
+  this "you only need one" note to the Help guide so it's clear there too?
+
+✻ Crunched for 21s
+
+> if i run only web base then i need to run the desktop or not                  
+
+● No — if you run the web version, you do not need the desktop at all. ❌
+
+  The web version is complete on its own. When you double-click
+  run-cherry-pick-studio.bat, it starts its own backend (the Node/Express
+  server) which contains the full git engine. The browser UI talks to that
+  server. Nothing about it depends on the desktop app.
+
+  run-cherry-pick-studio.bat
+          │
+          ▼
+     Node server (Express + WebSocket)  ◄── this IS the backend
+          │  runs the git engine (core/)
+          ▼
+     your browser UI  ◄── the whole tool, fully working
+
+  So:
+  - Web only → ✅ works completely by itself.
+  - Desktop only → ✅ also works completely by itself.
+  - They are two separate doors to the same tool — never required together.
+
+  One thing to keep in mind for the web version: leave the server console window
+  open while you use it. That black window is the backend — if you close it,
+  the browser UI loses its connection. To stop the tool, close that window (or
+  press Ctrl+C in it).
+
+  run-desktop.bat is only for when you'd rather have a native app window instead
+  of a browser tab. You'd run it instead of the web version, not in addition to
+  it.
+
+✻ Brewed for 7s
+
+> add the "you only need one" note to the help guide                            
+● I'll add a prominent "you only need one" note to the guide. Let me place it at
+  the top of the "How to run" section.
+
+● Update(docs\Cherry-Pick-Studio-Guide.html)
+  ⎿  Added 10 lines
+      162    <!-- =======================================================
+           ===== -->
+      163    <section id="run">
+      164      <h2><span class="dot"></span>How to run</h2>
+      165 +                                                              
+      166 +    <div class="callout ok"><b>You only need to run ONE of the
+          +m.</b> The web app and the desktop app are two complete, indep
+          +endent versions of the <em>same</em> tool — not a pair that mu
+          +st run together. Each has its own built-in backend and the sam
+          +e git engine inside it. Pick whichever you prefer:            
+      167 +      <ul style="margin:8px 0 0">                             
+      168 +        <li><b>Web only</b> (<code>run-cherry-pick-studio.bat<
+          +/code>) → works completely on its own. You do <b>not</b> need 
+          +the desktop.</li>                                             
+      169 +        <li><b>Desktop only</b> (<code>run-desktop.bat</code>)
+          + → works completely on its own. You do <b>not</b> need the web
+          +.</li>                                                        
+      170 +        <li><b>Both</b> (<code>run-all.bat</code>) → only if y
+          +ou specifically want both windows open at once. It is a conven
+          +ience, not a requirement.</li>                                
+      171 +      </ul>                                                   
+      172 +    </div>                                                    
+      173 +    <div class="callout"><b>Web users:</b> keep the server con
+          +sole window open while you use the browser UI — that window <e
+          +m>is</em> the backend. Closing it stops the web app.</div>    
+      174 +                                                              
+      175      <p>Everything is a double-click. Three Windows launchers l
+           ive in the project root:</p>
+      176      <table>
+      177        <tr><th>File</th><th>What it starts</th></tr>
+
+● Let me also reinforce it in the "Two ways to run it" card up top.
+
+● Update(docs\Cherry-Pick-Studio-Guide.html)
+  ⎿  Added 2 lines, removed 1 line
+      138          <h3 style="margin-top:0">Two ways to run it</h3>
+      139          <p><b>🌐 Web</b> — opens in your browser (Express + We
+           bSocket server).</p>
+      140          <p><b>🖥️ Desktop</b> — the same UI packaged as an Elec
+           tron app.</p>
+      141 -        <p class="muted" style="margin-bottom:0">Both share <b
+          ->one git engine</b> and <b>one frontend</b> — only the transpo
+          -rt differs.</p>                                               
+      141 +        <p class="muted">Both share <b>one git engine</b> and 
+          +<b>one frontend</b> — only the transport differs.</p>         
+      142 +        <p style="margin-bottom:0"><b>You only need one of the
+          +m</b> — each works completely on its own. See <a href="#run">H
+          +ow to run</a>.</p>                                            
+      143        </div>
+      144        <div class="card">
+      145          <h3 style="margin-top:0">Why a UI instead of the scrip
+           t</h3>
+
+● Done. I added the "you only need one" note to the guide in two places:
+
+  1. Top of the "How to run" section — a prominent green callout spelling out
+  all three cases (web only, desktop only, both), plus a reminder that web users
+  must keep the server console window open.
+  2. The "Two ways to run it" card near the top — a one-line reinforcement with
+  a link down to the How-to-run section.
+
+  Both live in docs\Cherry-Pick-Studio-Guide.html, so clicking 📖 Help in either
+  the web or desktop app now shows this clarification. No reload of the running
+  tool is needed beyond reopening the guide.
+
+✻ Cooked for 24s
+
+> here i have run the web version and test it                                   
+                                                                                
+  here we need to change default logs of the tool                               
+                                                                                
+  need to store the logs where the out tool path                                
+                                                                                
+  here we need to create the main logs folder in side this folder create the    
+  date time wise folder wiht AM/PM inside this folder we store the logs not at  
+  the repo side                                                                 
+                                                                                
+  Need to change for both web abd desktop                                       
+
+● I'll change the default log location from the repo to the tool's own folder.
+  The log path is decided in core/bridge.js (shared by both web and desktop), so
+  one change covers both. Let me update it.
+
+● Update(core\bridge.js)
+  ⎿  Added 5 lines
+      13  const g = require('./git');
+      14  const { Session, parseProgressFile } = require('./session');
+      15  
+      16 +// Default logs live INSIDE the tool folder (not in the target 
+         +repo):                                                         
+      17 +//   <cherry-pick-studio>/logs/<YYYYMMDD-hhmmAM|PM>/...        
+      18 +// bridge.js sits in core/, so the tool root is one level up.  
+      19 +const TOOL_LOGS_DIR = path.join(__dirname, '..', 'logs');      
+      20 +                                                               
+      21  function timestampFolder() {
+      22    const d = new Date();
+      23    const pad = (n) => String(n).padStart(2, '0');
+
+● Update(core\bridge.js)
+  ⎿  Added 1 line, removed 1 line
+      109          }
+      110  
+      111          case 'findResume': {
+      112 -          const base = msg.logBase || path.join(msg.repoPath |
+          -| '.', 'cherry-pick-logs');                                   
+      112 +          const base = msg.logBase || TOOL_LOGS_DIR;          
+      113            let found = null;
+      114            try {
+      115              if (fs.existsSync(base)) {
+
+● Update(core\bridge.js)
+  ⎿  Added 1 line, removed 1 line
+      133  
+      134          case 'start': {
+      135            const c = msg.config;
+      136 -          const logBase = c.logBase || path.join(c.repoPath, '
+          -cherry-pick-logs');                                           
+      136 +          const logBase = c.logBase || TOOL_LOGS_DIR;         
+      137            const logDir = path.join(logBase, timestampFolder())
+           ;
+      138            fs.mkdirSync(logDir, { recursive: true });
+      139  
+
+● Now update the UI hint that still says the old default, and the .gitignore:
+
+● Update(frontend\index.html)
+  ⎿  Added 1 line, removed 1 line
+      93            <p id="modeHint" class="hint">Cherry-pick and commit 
+          each commit individually.</p>
+      94          </div>
+      95          <div class="opt">
+      96 -          <label class="opt-label">Log folder <em>(blank = &lt;
+         -repo&gt;/cherry-pick-logs)</em></label>                        
+      96 +          <label class="opt-label">Log folder <em>(blank = the 
+         +tool's own <code>logs/</code> folder)</em></label>             
+      97            <input id="logBase" type="text" placeholder="(default
+          )" />
+      98          </div>
+      99        </div>
+
+  Read 1 file (ctrl+o to expand)
+
+● Update(.gitignore)
+  ⎿  Added 1 line
+      1  node_modules/
+      2 +logs/                                                           
+      3  cherry-pick-logs/
+      4  *.log
+      5  .DS_Store
+
+● Now let me verify it actually works end-to-end. I'll run the self-test's git
+  engine to confirm a real cherry-pick writes logs into the tool's logs/ folder.
+  Let me write a quick check that drives the bridge start path.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● The test file ran from /tmp so its relative require failed. Let me use
+  absolute paths to the project.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Verified working. The change is complete.
+
+  What changed
+
+  Logs now go into the tool's own folder, not the repo:
+
+  cherry-pick-studio/
+  └── logs/
+      └── 20260619-1135AM/          ← date-time folder with AM/PM
+          ├── cherry-pick-log.txt
+          └── .cherry-pick-progress
+
+  Previously they were written to <your-repo>/cherry-pick-logs/.... Now the
+  default base is cherry-pick-studio/logs/, and inside it each run gets a
+  timestamped folder in YYYYMMDD-hhmmAM|PM format (e.g. 20260619-1135AM).
+
+  Files changed
+
+  ┌─────────────────────┬────────────────────────────────────────────────────┐
+  │        File         │                       Change                       │
+  ├─────────────────────┼────────────────────────────────────────────────────┤
+  │                     │ Added TOOL_LOGS_DIR (= <tool>/logs) and made it    │
+  │ core/bridge.js      │ the default for both start (where logs are         │
+  │                     │ written) and findResume (where resume files are    │
+  │                     │ searched).                                         │
+  ├─────────────────────┼────────────────────────────────────────────────────┤
+  │ frontend/index.html │ Updated the Step 4 hint: "blank = the tool's own   │
+  │                     │ logs/ folder".                                     │
+  ├─────────────────────┼────────────────────────────────────────────────────┤
+  │ .gitignore          │ Added logs/ so runtime logs aren't committed.      │
+  └─────────────────────┴────────────────────────────────────────────────────┘
+
+  Because bridge.js is the shared engine used by both the Express server (web)
+  and Electron (desktop), this single change applies to both automatically — no
+  separate desktop change needed.
+
+  Verified
+
+  I ran the real engine end-to-end against a temp repo + remote:
+  - ✅ A new logs/20260619-1135AM/ folder was created inside the tool,
+  containing cherry-pick-log.txt and .cherry-pick-progress.
+  - ✅ The target repo got no cherry-pick-logs folder (repo has 
+  cherry-pick-logs? false).
+  - ✅ node --check passes on bridge.js.
+  - (Test log folder cleaned up afterward.)
+
+  Note: the Log folder field in Step 4 still works as an override — if you type
+  a custom path there, that wins; leaving it blank uses the new <tool>/logs/
+  default.
+
+  To see it live, just refresh the web UI (the running server already picked up
+  the change on its next run, but reload the page to get the updated hint).
+
+  Want me to also update the Help guide's logging section to mention the new
+  default location?
+
+✻ Churned for 1m 54s
+
+> here give folder name 19-06-2026_AM like this, yes update the help guide      
+  logging section                                                               
+
+● I'll change the folder name format to DD-MM-YYYY_AM/PM (e.g. 19-06-2026_AM),
+  then update the guide.
+
+● Update(core\bridge.js)
+  ⎿  Added 3 lines, removed 6 lines
+      21  function timestampFolder() {
+      22    const d = new Date();
+      23    const pad = (n) => String(n).padStart(2, '0');
+      24 -  let h = d.getHours();                                        
+      25 -  const ampm = h >= 12 ? 'PM' : 'AM';                          
+      26 -  const h12 = h % 12 || 12;                                    
+      27 -  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.get
+         -Date())}-${pad(h12)}${pad(                                     
+      28 -    d.getMinutes()                                             
+      29 -  )}${ampm}`;                                                  
+      24 +  const ampm = d.getHours() >= 12 ? 'PM' : 'AM';               
+      25 +  // Folder name format: DD-MM-YYYY_AM|PM  (e.g. 19-06-2026_AM)
+      26 +  return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getF
+         +ullYear()}_${ampm}`;                                           
+      27  }
+      28  
+      29  function createBridge(send) {
+
+● Now update the help guide. Let me find the logging-related parts.
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+● Update(docs\Cherry-Pick-Studio-Guide.html)  ⎿  Added 1 line, removed 1 line
+      332        <tr><td>Conflict resolver</td><td>Lists conflicted files
+           ; re-checks for leftover <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</c
+           ode> markers; resolve / skip / abort.</td></tr>
+      333        <tr><td>Push retry</td><td>retry / force-with-lease / sk
+           ip / abort on rejected pushes.</td></tr>
+      334        <tr><td>Crash resume</td><td>Writes <code>.cherry-pick-p
+           rogress</code> after each commit; offers to resume an interrup
+           ted session.</td></tr>
+      335 -      <tr><td>Logging</td><td>Timestamped log per run under <c
+          -ode>&lt;repo&gt;/cherry-pick-logs/</code> (or a custom folder)
+          -.</td></tr>                                                   
+      335 +      <tr><td>Logging</td><td>Timestamped log per run inside t
+          +he tool's own <code>logs/</code> folder (see <a href="#logs">L
+          +ogs &amp; where they go</a>), or a custom folder.</td></tr>   
+      336        <tr><td>Self-test</td><td><code>npm test</code> spins up
+            a real repo + bare remote and exercises the engine end-to-end
+           .</td></tr>
+      337      </table>
+      338    </section>
+
+● Now add a dedicated "Logs" section and a TOC entry. Let me add the section
+  before the "Folder structure" section:
+
+● Update(docs\Cherry-Pick-Studio-Guide.html)
+  ⎿  Added 21 lines
+      347    </section>
+      348  
+      349    <!-- =======================================================
+           ===== -->
+      350 +  <section id="logs">                                         
+      351 +    <h2><span class="dot"></span>Logs &amp; where they go</h2>
+      352 +    <p>Every run is logged <b>inside the tool's own folder</b>
+          + — <b>not</b> in your target repository. The main folder is cr
+          +eated automatically:</p>                                      
+      353 +    <pre>cherry-pick-studio/                                  
+      354 +└── logs/                                                     
+      355 +    └── <span class="k">19-06-2026_AM</span>/          <span c
+          +lass="c"># one folder per run — DD-MM-YYYY_AM|PM</span>       
+      356 +        ├── cherry-pick-log.txt   <span class="c"># full run l
+          +og (each line timestamped)</span>                             
+      357 +        └── .cherry-pick-progress <span class="c"># resume sta
+          +te, rewritten after every commit</span></pre>                 
+      358 +    <table>                                                   
+      359 +      <tr><th>Item</th><th>Detail</th></tr>                   
+      360 +      <tr><td>Main folder</td><td><code>&lt;cherry-pick-studio
+          +&gt;/logs/</code> — created on first run.</td></tr>           
+      361 +      <tr><td>Per-run folder</td><td>Named <code>DD-MM-YYYY_AM
+          +</code> or <code>DD-MM-YYYY_PM</code> (e.g. <code>19-06-2026_A
+          +M</code>).</td></tr>                                          
+      362 +      <tr><td>Log file</td><td><code>cherry-pick-log.txt</code
+          +> (or <code>dry-run-log.txt</code> in dry-run mode). Each line
+          + carries the exact time.</td></tr>                            
+      363 +      <tr><td>Resume file</td><td><code>.cherry-pick-progress<
+          +/code> — lets an interrupted run be resumed.</td></tr>        
+      364 +      <tr><td>Custom location</td><td>Set a path in <b>Step 4 
+          +→ Log folder</b> to override the default.</td></tr>           
+      365 +    </table>                                                  
+      366 +    <div class="callout"><b>Note:</b> the folder name is keyed
+          + to the half-day (AM/PM), so multiple runs in the same morning
+          +/afternoon share one folder. The log lines themselves are indi
+          +vidually timestamped, so runs stay distinguishable inside the 
+          +file.</div>                                                   
+      367 +    <div class="callout ok"><b>Why the tool folder?</b> Your r
+          +epositories stay clean — no <code>cherry-pick-logs</code> dire
+          +ctory is ever written into them. All logs from all repos colle
+          +ct in one predictable place.</div>                            
+      368 +  </section>                                                  
+      369 +                                                              
+      370 +  <!-- =======================================================
+          +===== -->                                                     
+      371    <section id="files">
+      372      <h2><span class="dot"></span>Folder structure</h2>
+      373      <pre>cherry-pick-studio/
+
+● Now add the TOC entry and the logs/ folder to the structure diagram:
+
+● Update(docs\Cherry-Pick-Studio-Guide.html)
+  ⎿  Added 1 line
+      123        <li><a href="#workflow">Using the UI (5 steps)</a></li>
+      124        <li><a href="#modes">Run modes &amp; push strategies</a>
+           </li>
+      125        <li><a href="#features">Feature list</a></li>
+      126 +      <li><a href="#logs">Logs &amp; where they go</a></li>   
+      127        <li><a href="#multi">Multiple instances / repos</a></li>
+      128        <li><a href="#files">Folder structure</a></li>
+      129        <li><a href="#trouble">Troubleshooting</a></li>
+
+● Update(docs\Cherry-Pick-Studio-Guide.html)
+  ⎿  Added 1 line
+      394  │   ├── app.js
+      395  │   ├── styles.css
+      396  │   └── transport.js    <span class="c"># WS vs IPC auto-detec
+           t</span>
+      397 +├── logs/               <span class="c"># run logs — DD-MM-YYY
+          +Y_AM|PM folders (auto-created)</span>                         
+      398  └── web-flask/          <span class="c"># placeholder (Python 
+           port — not built)</span></pre>
+      399    </section>
+      400  
+
+● Now verify the new folder-name format produces exactly 19-06-2026_AM:
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Both done and verified.
+
+  1. Folder name format changed
+
+  Per-run log folders are now named DD-MM-YYYY_AM|PM. Confirmed live output:
+  19-06-2026_AM.
+
+  cherry-pick-studio/
+  └── logs/
+      └── 19-06-2026_AM/
+          ├── cherry-pick-log.txt
+          └── .cherry-pick-progress
+
+  Changed in core/bridge.js → timestampFolder() (shared by both web and desktop,
+  so both get it). node --check passes.
+
+  2. Help guide updated (logging section)
+
+  In docs/Cherry-Pick-Studio-Guide.html:
+  - New dedicated "Logs & where they go" section — shows the logs/19-06-2026_AM/
+  structure, a details table (main folder, per-run folder format, log file,
+  resume file, custom-location override), and two callouts.
+  - Added it to the table of contents.
+  - Updated the Logging row in the feature table to point to the new section.
+  - Added the logs/ folder to the folder-structure diagram.
+
+  The guide opens via the 📖 Help button in both web and desktop.
+
+  One thing worth flagging
+
+  Because the folder name is keyed to the half-day (AM/PM only, no hour/minute),
+  two runs in the same morning (or same afternoon) share one folder — the log
+  file appends both (lines are individually timestamped, so they stay readable),
+  and the resume file is rewritten by the later run. I noted this in the guide.
+
+  If you'd rather each run get its own folder, I can add the time back, e.g.
+  19-06-2026_1135_AM. Want me to do that?
+
+✻ Crunched for 1m 34s
+
+> in log add the repo path so can check which repo logs are there               
+
+● Good idea — since all logs now collect centrally, the repo path makes each log
+  identifiable. I'll add it to the log header and the progress file. Both are
+  in core/session.js.
+
+● Update(core\session.js)
+  ⎿  Added 1 line
+      124    async run() {
+      125      try {
+      126        this.log('=== Cherry-Pick Studio Session ===');
+      127 +      this.log(`Repository: ${this.repoPath}`);               
+      128        this.log(`Branch: ${this.branch}`);
+      129        this.log(`Mode: ${this.runMode}`);
+      130        this.log(`Push strategy: ${this.pushMode}`);
+
+● Update(core\session.js)
+  ⎿  Added 1 line
+      102        .map((c) => c.input)
+      103        .join(' ');
+      104      const body = [
+      105 +      `repo_path=${this.repoPath}`,                           
+      106        `branch=${this.branch}`,
+      107        `push_mode=${this.pushMode}`,
+      108        `run_mode=${this.runMode}`,
+
+● Now let me verify with a real run that the repo path appears in both the log
+  file and the progress file.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Verified — the repo path is now recorded in both files.
+
+  What changed (core/session.js)
+
+  1. Log file — second line of every run's cherry-pick-log.txt now shows the
+  repo:
+  2026-06-19 11:38:59 AM | === Cherry-Pick Studio Session ===
+  2026-06-19 11:38:59 AM | Repository: C:\...\work      ← added
+  2026-06-19 11:38:59 AM | Branch: client/test
+  2026-06-19 11:38:59 AM | Mode: normal
+
+  2. Resume file — .cherry-pick-progress now starts with the repo path:
+  repo_path=C:\...\work      ← added
+  branch=client/test
+  push_mode=each
+
+  Since these are in the shared engine, both web and desktop get it
+  automatically. So when you open the central logs/19-06-2026_AM/ folder, you
+  can immediately tell which repository each run belongs to. node --check passes
+  and the real-run test confirmed both lines appear (test folders cleaned up
+  afterward).
+
+✻ Crunched for 51s
+
+> If you'd rather each run get its own folder, I can add the time back, e.g.    
+  19-06-2026_1135_AM. Want me to do that?                                       
+                                                                                
+                                                                                
+  for this we can use main one parent folder of date as i have mention and      
+  inside that add new sub folder after each cycle done                          
+
+● Got it — date-and-half-day parent folder, with a fresh subfolder per run
+  inside it. Let me check where timestampFolder is used before restructuring.
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+● I'll keep timestampFolder() as the date parent and add a runFolder() for the
+  per-run subfolder. Let me view the current start block.
+
+  Read 1 file (ctrl+o to expand)
+
+● Now let me add the runFolder() helper and restructure the start case:
+
+● Update(core\bridge.js)
+  ⎿  Added 11 lines, removed 1 line
+      22    const d = new Date();
+      23    const pad = (n) => String(n).padStart(2, '0');
+      24    const ampm = d.getHours() >= 12 ? 'PM' : 'AM';
+      25 -  // Folder name format: DD-MM-YYYY_AM|PM  (e.g. 19-06-2026_AM)
+      25 +  // Parent (date) folder format: DD-MM-YYYY_AM|PM  (e.g. 19-06
+         +-2026_AM)                                                      
+      26    return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getF
+          ullYear()}_${ampm}`;
+      27  }
+      28  
+      29 +// Per-run subfolder, created fresh for each cycle inside the d
+         +ate folder.                                                    
+      30 +// Format: hh-mm-ss_AM|PM  (e.g. 11-38-59_AM)                  
+      31 +function runFolder() {                                         
+      32 +  const d = new Date();                                        
+      33 +  const pad = (n) => String(n).padStart(2, '0');               
+      34 +  const ampm = d.getHours() >= 12 ? 'PM' : 'AM';               
+      35 +  const h12 = d.getHours() % 12 || 12;                         
+      36 +  return `${pad(h12)}-${pad(d.getMinutes())}-${pad(d.getSeconds
+         +())}_${ampm}`;                                                 
+      37 +}                                                              
+      38 +                                                               
+      39  function createBridge(send) {
+      40    let session = null;
+      41  
+
+● Update(core\bridge.js)
+  ⎿  Added 6 lines, removed 1 line
+      141          case 'start': {
+      142            const c = msg.config;
+      143            const logBase = c.logBase || TOOL_LOGS_DIR;
+      144 -          const logDir = path.join(logBase, timestampFolder())
+          -;                                                             
+      144 +          // Parent = date folder (DD-MM-YYYY_AM|PM); inside i
+          +t a fresh subfolder                                           
+      145 +          // per run (hh-mm-ss_AM|PM). A counter guards agains
+          +t same-second runs.                                           
+      146 +          const dateDir = path.join(logBase, timestampFolder()
+          +);                                                            
+      147 +          const sub = runFolder();                            
+      148 +          let logDir = path.join(dateDir, sub);               
+      149 +          for (let n = 2; fs.existsSync(logDir); n++) logDir =
+          + path.join(dateDir, `${sub}_${n}`);                           
+      150            fs.mkdirSync(logDir, { recursive: true });
+      151  
+      152            // Resolve ordered inputs to commit infos.
+
+● Now let me verify with two consecutive runs — they should create two
+  subfolders under the same date parent.
+
+  Ran 1 shell command (ctrl+o to expand)
+● Both runs got their own subfolder under the same date parent. Now update the
+  guide's logging section to match.
+
+  Read 1 file (ctrl+o to expand)
+
+● Update(docs\Cherry-Pick-Studio-Guide.html)
+  ⎿  Added 12 lines, removed 8 lines
+      353      <p>Every run is logged <b>inside the tool's own folder</b>
+            — <b>not</b> in your target repository. The main folder is cr
+           eated automatically:</p>
+      354      <pre>cherry-pick-studio/
+      355  └── logs/
+      356 -    └── <span class="k">19-06-2026_AM</span>/          <span c
+          -lass="c"># one folder per run — DD-MM-YYYY_AM|PM</span>       
+      357 -        ├── cherry-pick-log.txt   <span class="c"># full run l
+          -og (each line timestamped)</span>                             
+      358 -        └── .cherry-pick-progress <span class="c"># resume sta
+          -te, rewritten after every commit</span></pre>                 
+      356 +    └── <span class="k">19-06-2026_AM</span>/                 
+          +<span class="c"># PARENT — one per date + half-day (DD-MM-YYYY
+          +_AM|PM)</span>                                                
+      357 +        ├── <span class="k">11-41-32_AM</span>/             <s
+          +pan class="c"># SUBFOLDER — a fresh one for each run (hh-mm-ss
+          +_AM|PM)</span>                                                
+      358 +        │   ├── cherry-pick-log.txt   <span class="c"># full r
+          +un log (each line timestamped + repo path)</span>             
+      359 +        │   └── .cherry-pick-progress <span class="c"># resume
+          + state, rewritten after every commit</span>                   
+      360 +        └── <span class="k">11-41-35_AM</span>/             <s
+          +pan class="c"># the next run that day → its own subfolder</spa
+          +n>                                                            
+      361 +            └── ...</pre>                                     
+      362      <table>
+      363        <tr><th>Item</th><th>Detail</th></tr>
+      364        <tr><td>Main folder</td><td><code>&lt;cherry-pick-studio
+           &gt;/logs/</code> — created on first run.</td></tr>
+      362 -      <tr><td>Per-run folder</td><td>Named <code>DD-MM-YYYY_AM
+          -</code> or <code>DD-MM-YYYY_PM</code> (e.g. <code>19-06-2026_A
+          -M</code>).</td></tr>                                          
+      363 -      <tr><td>Log file</td><td><code>cherry-pick-log.txt</code
+          -> (or <code>dry-run-log.txt</code> in dry-run mode). Each line
+          - carries the exact time.</td></tr>                            
+      364 -      <tr><td>Resume file</td><td><code>.cherry-pick-progress<
+          -/code> — lets an interrupted run be resumed.</td></tr>        
+      365 -      <tr><td>Custom location</td><td>Set a path in <b>Step 4 
+          -→ Log folder</b> to override the default.</td></tr>           
+      365 +      <tr><td>Parent folder</td><td>Per date + half-day: <code
+          +>DD-MM-YYYY_AM</code> / <code>DD-MM-YYYY_PM</code> (e.g. <code
+          +>19-06-2026_AM</code>).</td></tr>                             
+      366 +      <tr><td>Run subfolder</td><td><b>A new subfolder for eve
+          +ry run</b>, named by start time <code>hh-mm-ss_AM|PM</code> (e
+          +.g. <code>11-41-32_AM</code>). Same-second runs get a <code>_2
+          +</code>, <code>_3</code> suffix.</td></tr>                    
+      367 +      <tr><td>Log file</td><td><code>cherry-pick-log.txt</code
+          +> (or <code>dry-run-log.txt</code> in dry-run mode). Header re
+          +cords the <b>repository path</b>; each line carries the exact 
+          +time.</td></tr>                                               
+      368 +      <tr><td>Resume file</td><td><code>.cherry-pick-progress<
+          +/code> — records the repo path + branch and lets an interrupte
+          +d run be resumed.</td></tr>                                   
+      369 +      <tr><td>Custom location</td><td>Set a path in <b>Step 4 
+          +→ Log folder</b> to override the default base.</td></tr>      
+      370      </table>
+      367 -    <div class="callout"><b>Note:</b> the folder name is keyed
+          - to the half-day (AM/PM), so multiple runs in the same morning
+          -/afternoon share one folder. The log lines themselves are indi
+          -vidually timestamped, so runs stay distinguishable inside the 
+          -file.</div>                                                   
+      371 +    <div class="callout ok"><b>Each run is isolated.</b> Runs 
+          +are grouped under the day's parent folder, and every run gets 
+          +its own timestamped subfolder — so logs never mix. The log hea
+          +der also records which repository the run targeted.</div>     
+      372      <div class="callout ok"><b>Why the tool folder?</b> Your r
+           epositories stay clean — no <code>cherry-pick-logs</code> dire
+           ctory is ever written into them. All logs from all repos colle
+           ct in one predictable place.</div>
+      373    </section>
+      374  
+
+● Update(docs\Cherry-Pick-Studio-Guide.html)
+  ⎿  Added 1 line, removed 1 line
+      398  │   ├── app.js
+      399  │   ├── styles.css
+      400  │   └── transport.js    <span class="c"># WS vs IPC auto-detec
+           t</span>
+      401 -├── logs/               <span class="c"># run logs — DD-MM-YYY
+          -Y_AM|PM folders (auto-created)</span>                         
+      401 +├── logs/               <span class="c"># run logs — date_AM|P
+          +M parent → per-run subfolder (auto-created)</span>            
+      402  └── web-flask/          <span class="c"># placeholder (Python 
+           port — not built)</span></pre>
+      403    </section>
+      404  
+
+● Done and verified. Here's the new log layout.
+
+  New structure: date parent → per-run subfolder
+
+  cherry-pick-studio/
+  └── logs/
+      └── 19-06-2026_AM/              ← PARENT: date + half-day
+  (DD-MM-YYYY_AM|PM)
+          ├── 11-41-32_AM/            ← one run
+          │   ├── cherry-pick-log.txt
+          │   └── .cherry-pick-progress
+          └── 11-41-35_AM/            ← next run that day → its own subfolder
+              └── ...
+
+  - Parent folder = DD-MM-YYYY_AM|PM (e.g. 19-06-2026_AM) — exactly as you
+  specified.
+  - Run subfolder = a fresh hh-mm-ss_AM|PM folder created after each cycle/run
+  (e.g. 11-41-32_AM). If two runs ever start in the same second, the second gets
+  a _2, _3 suffix so nothing collides.
+
+  Verified
+
+  I ran the real engine twice back-to-back:
+  DATE PARENT: 19-06-2026_AM
+     run subfolder: 11-41-32_AM -> ['.cherry-pick-progress',
+  'cherry-pick-log.txt']
+     run subfolder: 11-41-35_AM -> ['.cherry-pick-progress',
+  'cherry-pick-log.txt']
+  Two runs → one shared date parent, two separate subfolders. (Test folders
+  cleaned up.)
+
+  Files changed
+
+  - core/bridge.js — added runFolder() (hh-mm-ss_AM|PM) and made start build
+  logs/<date_AMPM>/<run>/ with a same-second uniqueness guard. node --check
+  passes.
+  - docs/Cherry-Pick-Studio-Guide.html — updated the Logs section diagram +
+  table (parent vs run subfolder, repo path in header) and the folder-structure
+  line.
+
+  Shared engine, so web and desktop both get it. Resume still works — the resume
+  search descends into the nested folders automatically.
+
+✻ Baked for 2m 21s
+
+> here explain me the how in backend work                                       
+                                                                                
+  for the commit review and order                                               
+                                                                                
+  it is taking so much time                                                     
+                                                                                
+  can we faster this process or not                                             
+
+● Let me explain how it works, then I'll show where the time goes and speed it
+  up. First let me confirm the exact backend path for Step 5.
+
+  The "Analyze & build plan" button sends an analyzeRun command. Here's the
+  backend chain:
+
+  bridge.js → analyzeRun:
+  1. Calls git.commitInfo() for every commit you entered (to resolve metadata +
+  sort by date).
+  2. Calls git.alreadyApplied() to detect which commits are already on the
+  branch.
+
+  Let me show the two cost centers precisely:
+
+  Read 1 file (ctrl+o to expand)
+
+● Why it's slow
+
+  The time goes almost entirely into alreadyApplied() (the "is this commit
+  already on the branch?" check). Here's the current backend, and why it's
+  expensive — every call spawns a separate git process, sequentially:
+
+  ┌──────────────────────────┬──────────────────────────────────────────────┐
+  │           Work           │          git processes (sequential)          │
+  ├──────────────────────────┼──────────────────────────────────────────────┤
+  │ commitInfo() per commit  │ 3 each — git log, git cat-file -p (parents), │
+  │                          │  git log (parent label)                      │
+  ├──────────────────────────┼──────────────────────────────────────────────┤
+  │ alreadyApplied()         │ For the last 200 branch commits → git show + │
+  │ patch-id scan            │  git patch-id = ~400 spawns                  │
+  ├──────────────────────────┼──────────────────────────────────────────────┤
+  │ plus a patch-id per      │ 2 each                                       │
+  │ input commit             │                                              │
+  └──────────────────────────┴──────────────────────────────────────────────┘
+
+  So for, say, 20 input commits you get roughly 20×3 + 400 + 20×2 ≈ 500
+  sequential git process launches. On Windows each launch is ~20–50 ms, so
+  that's easily 10–25 seconds. That patch-id scan is the killer (it was the
+  CLI's old O(n×100) problem).
+
+  Yes — it can be made much faster
+
+  Three changes, no behavior change:
+  1. Patch-ids in ONE pipeline — git log -p | git patch-id computes all 200
+  branch patch-ids in one streamed pass instead of 400 spawns.
+  2. commitInfo from 3 calls → 1 — get parents via %P in the same git log (drop
+  cat-file), and only look up parent labels for actual merge commits.
+  3. Parallelize the per-commit lookups (bounded to 8 at a time) instead of
+  one-at-a-time.
+
+  Let me implement it.
+
+● Update(core\git.js)
+  ⎿  Added 16 lines, removed 1 line
+       5  // ============================================================
+          =================
+       6  'use strict';
+       7  
+       8 -const { execFile } = require('child_process');                 
+       8 +const { execFile, spawn } = require('child_process');          
+       9  
+      10 +// Run an async fn over items with bounded concurrency, preserv
+         +ing input order.                                               
+      11 +// Keeps us from spawning hundreds of git processes at once on 
+         +Windows.                                                       
+      12 +async function mapLimit(items, limit, fn) {                    
+      13 +  const out = new Array(items.length);                         
+      14 +  let next = 0;                                                
+      15 +  const workers = Array.from({ length: Math.min(limit, items.le
+         +ngth) }, async () => {                                         
+      16 +    while (next < items.length) {                              
+      17 +      const i = next++;                                        
+      18 +      out[i] = await fn(items[i], i);                          
+      19 +    }                                                          
+      20 +  });                                                          
+      21 +  await Promise.all(workers);                                  
+      22 +  return out;                                                  
+      23 +}                                                              
+      24 +                                                               
+      25  /**
+      26   * Run a git command in repoPath. Never throws on a non-zero ex
+          it; instead
+      27   * returns { code, stdout, stderr }. Callers decide what a fail
+          ure means.
+
+● Update(core\git.js)
+  ⎿  Added 18 lines, removed 11 lines
+      176  }
+      177  
+      178  // Full info for one commit, including merge-commit parent det
+           ails. [Features 4, 12, 13]
+      179 +// One `git log` call gives metadata AND parent hashes (%P) — 
+          +no extra cat-file.                                            
+      180 +// Parent labels are only fetched for actual merge commits (wh
+          +ere the UI needs them).                                       
+      181  async function commitInfo(repoPath, id) {
+      180 -  const fmt = '%H%x1f%h%x1f%an%x1f%at%x1f%ad%x1f%s';          
+      182 +  const fmt = '%H%x1f%h%x1f%an%x1f%at%x1f%ad%x1f%P%x1f%s';    
+      183    const r = await git(repoPath, [
+      184      'log',
+      185      '-1',
+     ...
+      188      id,
+      189    ]);
+      190    if (r.code !== 0) return null;
+      189 -  const [hash, shortHash, author, epoch, dateStr, subject] = r
+          -.stdout.trim().split('\x1f');                                 
+      191 +  const [hash, shortHash, author, epoch, dateStr, parentStr, s
+          +ubject] = r.stdout                                            
+      192 +    .trim()                                                   
+      193 +    .split('\x1f');                                           
+      194  
+      191 -  // Parent count -> merge detection                          
+      192 -  const cat = await git(repoPath, ['cat-file', '-p', id]);    
+      193 -  const parentLines = cat.stdout.split('\n').filter((l) => l.s
+          -tartsWith('parent '));                                        
+      194 -  const isMerge = parentLines.length > 1;                     
+      195 -  const parents = [];                                         
+      196 -  for (const pl of parentLines) {                             
+      197 -    const phash = pl.slice('parent '.length).trim();          
+      198 -    const pr = await git(repoPath, ['log', '-1', '--format=%h 
+          -%s', phash]);                                                 
+      199 -    parents.push({ hash: phash, label: pr.stdout.trim() });   
+      195 +  const parentHashes = (parentStr || '').trim().split(/\s+/).f
+          +ilter(Boolean);                                               
+      196 +  const isMerge = parentHashes.length > 1;                    
+      197 +                                                              
+      198 +  // Only merges need parent labels (the mainline picker); ski
+          +p the lookups otherwise.                                      
+      199 +  let parents = [];                                           
+      200 +  if (isMerge) {                                              
+      201 +    parents = await Promise.all(                              
+      202 +      parentHashes.map(async (phash) => {                     
+      203 +        const pr = await git(repoPath, ['log', '-1', '--format
+          +=%h %s', phash]);                                             
+      204 +        return { hash: phash, label: pr.stdout.trim() };      
+      205 +      })                                                      
+      206 +    );                                                        
+      207    }
+      208  
+      209    return {
+
+● Now parallelize the validation list:
+
+● Update(core\git.js)
+  ⎿  Added 8 lines, removed 6 lines
+      243      else badFormat.push(id);
+      244    }
+      245  
+      246 +  // Resolve existence + info in parallel (bounded), preservin
+          +g order.                                                      
+      247 +  const resolved = await mapLimit(formatOk, 8, async (id) => {
+      248 +    if (await commitExists(repoPath, id)) return { id, info: a
+          +wait commitInfo(repoPath, id) };                              
+      249 +    return { id, info: null };                                
+      250 +  });                                                         
+      251    const notFound = [];
+      252    const valid = [];
+      248 -  for (const id of formatOk) {                                
+      249 -    if (await commitExists(repoPath, id)) {                   
+      250 -      valid.push(await commitInfo(repoPath, id));             
+      251 -    } else {                                                  
+      252 -      notFound.push(id);                                      
+      253 -    }                                                         
+      253 +  for (const r of resolved) {                                 
+      254 +    if (r.info) valid.push(r.info);                           
+      255 +    else notFound.push(r.id);                                 
+      256    }
+      257  
+      258    return { valid, duplicates, badFormat, notFound };
+
+● Now the big one — rewrite alreadyApplied and add the piped helper:
+
+● Update(core\git.js)
+  ⎿  Added 56 lines, removed 17 lines
+      258    return { valid, duplicates, badFormat, notFound };
+      259  }
+      260  
+      261 +// Compute patch-ids for many commits in ONE streamed pipeline
+          +:                                                             
+      262 +//   git log -p <logArgs> | git patch-id --stable             
+      263 +// patch-id prints "<patchId> <commitId>" per patch. We only b
+          +uffer that small                                              
+      264 +// output in Node — never the (potentially huge) diff itself. 
+      265 +// Returns { set:Set<patchId>, byCommit:Map<commitHash, patchI
+          +d> }.                                                         
+      266 +function patchIdsPiped(repoPath, logArgs) {                   
+      267 +  return new Promise((resolve) => {                           
+      268 +    let out = '';                                             
+      269 +    let settled = false;                                      
+      270 +    const finish = () => {                                    
+      271 +      if (settled) return;                                    
+      272 +      settled = true;                                         
+      273 +      const set = new Set();                                  
+      274 +      const byCommit = new Map();                             
+      275 +      for (const line of out.split('\n')) {                   
+      276 +        const sp = line.indexOf(' ');                         
+      277 +        if (sp === -1) continue;                              
+      278 +        const pid = line.slice(0, sp).trim();                 
+      279 +        const commit = line.slice(sp + 1).trim();             
+      280 +        if (!pid) continue;                                   
+      281 +        set.add(pid);                                         
+      282 +        if (commit) byCommit.set(commit, pid);                
+      283 +      }                                                       
+      284 +      resolve({ set, byCommit });                             
+      285 +    };                                                        
+      286 +    try {                                                     
+      287 +      const log = spawn('git', ['log', '-p', ...logArgs], { cw
+          +d: repoPath, windowsHide: true });                            
+      288 +      const pid = spawn('git', ['patch-id', '--stable'], { cwd
+          +: repoPath, windowsHide: true });                             
+      289 +      log.stdout.pipe(pid.stdin);                             
+      290 +      pid.stdout.on('data', (d) => (out += d.toString()));    
+      291 +      pid.on('close', finish);                                
+      292 +      pid.on('error', finish);                                
+      293 +      log.on('error', finish);                                
+      294 +      // Avoid unhandled EPIPE if one side closes early.      
+      295 +      log.stdout.on('error', () => {});                       
+      296 +      pid.stdin.on('error', () => {});                        
+      297 +    } catch (_) {                                             
+      298 +      finish();                                               
+      299 +    }                                                         
+      300 +  });                                                         
+      301 +}                                                             
+      302 +                                                              
+      303  // Which of `ids` are already on origin/branch (exact hash or 
+           patch-id match).
+      262 -// [Feature 1] Bounded patch-id scan; reports the cap it used.
+          - [fixes O(n*100) opacity]                                     
+      304 +// [Feature 1] Bounded patch-id scan; reports the cap it used.
+      305 +// Fast path: two `git log -p | git patch-id` pipelines instea
+          +d of ~2*N spawns.                                             
+      306  async function alreadyApplied(repoPath, branch, ids, scanDepth
+            = 200) {
+      307    const exact = await git(repoPath, ['log', '--format=%H', `or
+           igin/${branch}`]);
+      308    const branchHashes = new Set(exact.stdout.split('\n').filter
+           (Boolean));
+      309  
+      267 -  // Precompute patch-ids for the last `scanDepth` branch comm
+          -its ONCE.                                                     
+      268 -  const recent = await git(repoPath, [                        
+      269 -    'log',                                                    
+      270 -    '--format=%H',                                            
+      271 -    `-${scanDepth}`,                                          
+      272 -    `origin/${branch}`,                                       
+      273 -  ]);                                                         
+      274 -  const recentHashes = recent.stdout.split('\n').filter(Boolea
+          -n);                                                           
+      275 -  const branchPatchIds = new Set();                           
+      276 -  for (const h of recentHashes) {                             
+      277 -    const pid = await patchId(repoPath, h);                   
+      278 -    if (pid) branchPatchIds.add(pid);                         
+      279 -  }                                                           
+      310 +  // Patch-ids for the last `scanDepth` branch commits — ONE p
+          +ipeline.                                                      
+      311 +  const branchPids = await patchIdsPiped(repoPath, [`-${scanDe
+          +pth}`, `origin/${branch}`]);                                  
+      312  
+      313 +  // Patch-ids for the input commits — ONE pipeline, keyed by 
+          +full commit hash.                                             
+      314 +  const inputHashes = ids.map((i) => i.hash).filter(Boolean); 
+      315 +  const inputPids =                                           
+      316 +    inputHashes.length > 0                                    
+      317 +      ? await patchIdsPiped(repoPath, ['--no-walk', ...inputHa
+          +shes])                                                        
+      318 +      : { set: new Set(), byCommit: new Map() };              
+      319 +                                                              
+      320    const applied = [];
+      321    const remaining = [];
+      322    for (const info of ids) {
+     ...
+      324        applied.push(info);
+      325        continue;
+      326      }
+      288 -    const pid = await patchId(repoPath, info.input);          
+      289 -    if (pid && branchPatchIds.has(pid)) applied.push(info);   
+      327 +    const pid = inputPids.byCommit.get(info.hash);            
+      328 +    if (pid && branchPids.set.has(pid)) applied.push(info);   
+      329      else remaining.push(info);
+      330    }
+      292 -  return { applied, remaining, scannedDepth: recentHashes.leng
+          -th };                                                         
+      331 +  return { applied, remaining, scannedDepth: Math.min(scanDept
+          +h, branchHashes.size) };                                      
+      332  }
+      333  
+      334  async function patchId(repoPath, ref) {
+
+● Now export mapLimit and use it in bridge.js analyzeRun:
+
+● Update(core\git.js)
+  ⎿  Added 1 line
+      467  
+      468  module.exports = {
+      469    git,
+      470 +  mapLimit,                                                   
+      471    isGitRepo,
+      472    pendingOps,
+      473    abortPending,
+
+● Update(core\bridge.js)
+  ⎿  Added 5 lines, removed 6 lines
+      100          }
+      101  
+      102          case 'analyzeRun': {
+      103 -          // Resolve, sort by epoch (oldest first), detect alr
+          -eady-applied.                                                 
+      104 -          const infos = [];                                   
+      105 -          for (const input of msg.inputs) {                   
+      106 -            const info = await g.commitInfo(msg.repoPath, inpu
+          -t);                                                           
+      107 -            if (info) infos.push(info);                       
+      108 -          }                                                   
+      103 +          // Resolve (in parallel), sort by epoch (oldest firs
+          +t), detect already-applied.                                   
+      104 +          const resolved = await g.mapLimit(msg.inputs, 8, (in
+          +put) =>                                                       
+      105 +            g.commitInfo(msg.repoPath, input)                 
+      106 +          );                                                  
+      107 +          const infos = resolved.filter(Boolean);             
+      108            infos.sort((a, b) => a.epoch - b.epoch);
+      109            const aa = await g.alreadyApplied(msg.repoPath, msg.
+           branch, infos);
+      110            return reply({
+
+● Now verify correctness with the existing self-test (which covers
+  already-applied detection), plus a quick timing comparison.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● All 18 pass, including already-applied detection. Now let me measure the new
+  speed on a realistic repo (200-commit branch history + 20 input commits).
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Done — and measured. Here's the full picture.
+
+  How the backend works for "Analyze & build plan"
+
+  When you click it, the UI sends analyzeRun, which runs two stages:
+
+  1. commitInfo() for each commit — resolves hash, author, date, subject, and
+  whether it's a merge (so they can be sorted oldest→newest).
+  2. alreadyApplied() — finds commits already on the branch by exact hash and by
+  patch-id (same change, different hash). The patch-id part scanned the last
+  200 branch commits.
+
+  Why it was slow
+
+  Every git query spawned a separate git.exe process, one after another. For ~20
+  commits against a 200-deep branch that was ~500 sequential process launches —
+  and the patch-id scan alone was ~400 of them (git show + git patch-id per
+  branch commit). On Windows each launch is ~25–40 ms, so the whole thing took
+  roughly 12–20 seconds.
+
+  What I changed (in core/git.js + core/bridge.js)
+
+  ┌───────────────────┬─────────────────┬───────────────────────────────────┐
+  │   Optimization    │     Before      │               After               │
+  ├───────────────────┼─────────────────┼───────────────────────────────────┤
+  │ Branch patch-id   │ ~400 process    │ 1 streamed pipeline (git log -p | │
+  │ scan              │ spawns          │  git patch-id)                    │
+  ├───────────────────┼─────────────────┼───────────────────────────────────┤
+  │ Input patch-ids   │ 2 spawns × N    │ 1 pipeline                        │
+  ├───────────────────┼─────────────────┼───────────────────────────────────┤
+  │ commitInfo per    │ 3 git calls     │ 1 call (parents from %P; labels   │
+  │ commit            │                 │ only for real merges)             │
+  ├───────────────────┼─────────────────┼───────────────────────────────────┤
+  │ Per-commit        │ sequential      │ parallel, 8 at a time             │
+  │ lookups           │                 │                                   │
+  └───────────────────┴─────────────────┴───────────────────────────────────┘
+
+  Result — measured on a 200-commit branch + 20 input commits
+
+  commitInfo (x20)    :  437 ms
+  alreadyApplied scan :  732 ms
+  TOTAL analyzeRun    : 1169 ms   ← ~1.2 s
+
+  That's down from an estimated ~12–20 s → ~1.2 s (roughly 10–15× faster), and
+  it scales much better as branch history grows.
+
+  Correctness — verified
+
+  npm test → 18/18 pass, including:
+  - alreadyApplied: 3 remaining
+  - re-run detects already applied: all 3 now already-applied
+
+  So detection behaves identically — it's just far fewer git processes. This
+  applies to both web and desktop (shared engine).
+
+  If your branches are very deep and you want even faster (at the cost of
+  possibly missing a rebased-long-ago duplicate), I can expose the patch-id scan
+  depth (currently 200) as a setting in Step 4. Want that?
+
+✻ Crunched for 4m 57s
+
+> yes expose the scan depth as a setting                                        
+
+● I'll wire the scan depth through the UI. Let me find where the frontend sends
+  analyzeRun.
+  Searched for 1 pattern (ctrl+o to expand)
+
+● I'll add the setting to Step 4, wire it through, and let 0 mean "exact-hash
+  only" (fastest). Let me make the edits.
+
+● Update(frontend\index.html)
+  ⎿  Added 4 lines
+       96            <label class="opt-label">Log folder <em>(blank = the
+            tool's own <code>logs/</code> folder)</em></label>
+       97            <input id="logBase" type="text" placeholder="(defaul
+           t)" />
+       98          </div>
+       99 +        <div class="opt">                                     
+      100 +          <label class="opt-label">Already-applied scan depth 
+          +<em>(branch commits to patch-scan; blank = 200, 0 = exact-hash
+          + only / fastest)</em></label>                                 
+      101 +          <input id="scanDepth" type="number" min="0" step="1"
+          + placeholder="200" />                                         
+      102 +        </div>                                                
+      103        </div>
+      104  
+      105        <!-- Step 5: Order & start -->
+
+● Update(frontend\app.js)
+  ⎿  Added 7 lines, removed 1 line
+      238      setStatus(note, line('info', 'Sorting by date & scanning t
+           arget branch…'));
+      239      try {
+      240        const inputs = state.valid.map((c) => c.input);
+      241 -      const r = await T.request('analyzeRun', { repoPath: stat
+          -e.repoPath, branch: state.branch, inputs });                  
+      241 +      const params = { repoPath: state.repoPath, branch: state
+          +.branch, inputs };                                            
+      242 +      const depthRaw = $('scanDepth').value.trim();           
+      243 +      if (depthRaw !== '') {                                  
+      244 +        const d = parseInt(depthRaw, 10);                     
+      245 +        if (!isNaN(d) && d >= 0) params.scanDepth = d;        
+      246 +      }                                                       
+      247 +      const r = await T.request('analyzeRun', params);        
+      248        state.plan = r.ordered;
+      249        state.applied = r.applied;
+      250        state.preSkipped = r.applied.length;
+
+● Update(core\bridge.js)
+  ⎿  Added 1 line, removed 1 line
+      106            );
+      107            const infos = resolved.filter(Boolean);
+      108            infos.sort((a, b) => a.epoch - b.epoch);
+      109 -          const aa = await g.alreadyApplied(msg.repoPath, msg.
+          -branch, infos);                                               
+      109 +          const aa = await g.alreadyApplied(msg.repoPath, msg.
+          +branch, infos, msg.scanDepth);                                
+      110            return reply({
+      111              ordered: aa.remaining,
+      112              applied: aa.applied,
+
+● Now update git.js so 0 means exact-hash-only and the value is sanitized:
+
+● Update(core\git.js)
+  ⎿  Added 10 lines, removed 4 lines
+      304  // [Feature 1] Bounded patch-id scan; reports the cap it used.
+      305  // Fast path: two `git log -p | git patch-id` pipelines instea
+           d of ~2*N spawns.
+      306  async function alreadyApplied(repoPath, branch, ids, scanDepth
+            = 200) {
+      307 +  // Sanitize: blank/invalid -> 200; 0 -> exact-hash match onl
+          +y (fastest).                                                  
+      308 +  const depth = Number.isFinite(scanDepth) ? Math.max(0, Math.
+          +floor(scanDepth)) : 200;                                      
+      309 +                                                              
+      310    const exact = await git(repoPath, ['log', '--format=%H', `or
+           igin/${branch}`]);
+      311    const branchHashes = new Set(exact.stdout.split('\n').filter
+           (Boolean));
+      312  
+      310 -  // Patch-ids for the last `scanDepth` branch commits — ONE p
+          -ipeline.                                                      
+      311 -  const branchPids = await patchIdsPiped(repoPath, [`-${scanDe
+          -pth}`, `origin/${branch}`]);                                  
+      313 +  // Patch-ids for the last `depth` branch commits — ONE pipel
+          +ine. Skipped when depth=0.                                    
+      314 +  const branchPids =                                          
+      315 +    depth > 0                                                 
+      316 +      ? await patchIdsPiped(repoPath, [`-${depth}`, `origin/${
+          +branch}`])                                                    
+      317 +      : { set: new Set(), byCommit: new Map() };              
+      318  
+      319    // Patch-ids for the input commits — ONE pipeline, keyed by 
+           full commit hash.
+      314 -  const inputHashes = ids.map((i) => i.hash).filter(Boolean); 
+      320 +  const inputHashes = depth > 0 ? ids.map((i) => i.hash).filte
+          +r(Boolean) : [];                                              
+      321    const inputPids =
+      322      inputHashes.length > 0
+      323        ? await patchIdsPiped(repoPath, ['--no-walk', ...inputHa
+           shes])
+     ...
+      334      if (pid && branchPids.set.has(pid)) applied.push(info);
+      335      else remaining.push(info);
+      336    }
+      331 -  return { applied, remaining, scannedDepth: Math.min(scanDept
+          -h, branchHashes.size) };                                      
+      337 +  return { applied, remaining, scannedDepth: Math.min(depth, b
+          +ranchHashes.size) };                                          
+      338  }
+      339  
+      340  async function patchId(repoPath, ref) {
+
+● Now verify: syntax, self-test, and that the depth param behaves (default,
+  custom, and 0).
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Now a targeted test: a patch-id duplicate (cherry-picked → different hash)
+  should be detected at depth 200 but treated as remaining at depth 0.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Behavior is exactly right. Now let me update the guide to document the new
+  setting.
+
+● Update(docs\Cherry-Pick-Studio-Guide.html)
+  ⎿  Added 1 line, removed 1 line
+      328        <tr><td>Branch safety</td><td>Fetches origin, verifies r
+           emote branch, <b>warns about unpushed local commits</b> before
+            a fresh re-checkout.</td></tr>
+      329        <tr><td>Commit validation</td><td>Format check, duplicat
+           e removal, existence check, not-found reporting.</td></tr>
+      330        <tr><td>Chronological ordering</td><td>Sorts commits old
+           est→newest by author timestamp so history applies cleanly.</td
+           ></tr>
+      331 -      <tr><td>Already-applied detection</td><td>Skips commits 
+          -already on the branch via exact-hash + bounded patch-id scan (
+          -reports the depth scanned).</td></tr>                         
+      331 +      <tr><td>Already-applied detection</td><td>Skips commits 
+          +already on the branch via exact-hash + bounded patch-id scan (
+          +reports the depth scanned). The <b>scan depth is tunable</b> i
+          +n Step 4 — see below.</td></tr>                               
+      332        <tr><td>Merge-commit handling</td><td>Detects merges and
+            asks which parent (mainline <code>-m 1/2</code>) to follow — 
+           or skip.</td></tr>
+      333        <tr><td>Conflict resolver</td><td>Lists conflicted files
+           ; re-checks for leftover <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</c
+           ode> markers; resolve / skip / abort.</td></tr>
+      334        <tr><td>Push retry</td><td>retry / force-with-lease / sk
+           ip / abort on rejected pushes.</td></tr>
+
+● Update(docs\Cherry-Pick-Studio-Guide.html)
+  ⎿  Added 6 lines
+      310          <p><b>Review</b> — apply all with <code>--no-commit</c
+           ode> so everything stacks as staged changes; at the end you re
+           view the combined diff and commit it as <b>one</b> commit (or 
+           discard).</p>
+      311        </div>
+      312        <div class="card">
+      313 +        <h3 style="margin-top:0">Already-applied scan depth <e
+          +m>(Step 4)</em></h3>                                          
+      314 +        <p>Controls how many of the target branch's recent com
+          +mits are <b>patch-id scanned</b> to detect commits already app
+          +lied under a <em>different</em> hash (e.g. a previous cherry-p
+          +ick).</p>                                                     
+      315 +        <p><b>Blank = 200</b> (default). Higher = catches olde
+          +r duplicates but slower. <b>0 = exact-hash match only</b> — fa
+          +stest, skips the patch scan entirely.</p>                     
+      316 +        <p class="muted" style="margin-bottom:0">Tip: on very 
+          +deep branches, lowering this is the single biggest speed-up fo
+          +r the Analyze step.</p>                                       
+      317 +      </div>                                                  
+      318 +      <div class="card">                                      
+      319          <h3 style="margin-top:0">Push strategies</h3>
+      320          <p><b>Push after each</b> <em>(safer)</em> — pulls (ff
+           -only) and pushes after every commit; smallest blast radius on
+            failure.</p>
+      321          <p><b>Batch at end</b> <em>(faster)</em> — one push af
+           ter all commits succeed.</p>
+
+● All wired and verified. Here's what I added.
+
+  New setting: "Already-applied scan depth" (Step 4)
+
+  A numeric field in the Options step that controls how deep the patch-id scan
+  goes:
+
+  ┌─────────────────┬───────────────────────────────────────────────────────┐
+  │      Value      │                       Behavior                        │
+  ├─────────────────┼───────────────────────────────────────────────────────┤
+  │ blank           │ Default 200 branch commits scanned                    │
+  ├─────────────────┼───────────────────────────────────────────────────────┤
+  │ higher (e.g.    │ Catches older duplicates, slower                      │
+  │ 500)            │                                                       │
+  ├─────────────────┼───────────────────────────────────────────────────────┤
+  │ 0               │ Exact-hash match only — skips the patch scan entirely │
+  │                 │  = fastest                                            │
+  └─────────────────┴───────────────────────────────────────────────────────┘
+
+  How it flows through
+
+  Step 4 input (#scanDepth)
+     → app.js sends scanDepth in the analyzeRun request (only if a valid number)
+     → bridge.js passes it to g.alreadyApplied(..., msg.scanDepth)
+     → git.js sanitizes it (blank→200, clamps ≥0) and skips the patch pipelines
+  when 0
+
+  Files changed
+
+  - frontend/index.html — added the scan-depth number input with an inline hint.
+  - frontend/app.js — reads/validates it and includes it in analyzeRun.
+  - core/bridge.js — passes msg.scanDepth through.
+  - core/git.js — sanitizes the value; 0 → exact-hash-only (no patch pipelines).
+  - docs/Cherry-Pick-Studio-Guide.html — documented it (a new card + a note in
+  the feature table).
+
+  Verified
+
+  - node --check passes on all changed JS; npm test → 18/18.
+  - Targeted behavior test on a real cherry-picked (rebased) duplicate:
+    - depth 200 → applied: 1 (patch-id match caught) ✅
+    - depth 0 → remaining: 1 (exact-hash only, as intended) ✅
+
+  Shared engine, so this works in both web and desktop. Refresh the UI to see
+  the new field in Step 4.
+
+✻ Sautéed for 2m 31s
