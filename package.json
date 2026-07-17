@@ -9,7 +9,7 @@
     "desktop": "electron .",
     "test": "node core/selftest.js"
   },
-  "author": "",
+  "author": "Piyush Katariya <piyush.katariya@casepoint.in>",
   "license": "MIT",
   "dependencies": {
     "express": "^4.19.2",
