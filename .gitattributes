@@ -1,0 +1,24 @@
+# Normalize line endings: let Git handle text automatically.
+# Files are stored with LF in the repo; checked out with native endings.
+* text=auto
+
+# Explicit text files (stored LF)
+*.js    text eol=lf
+*.json  text eol=lf
+*.html  text eol=lf
+*.css   text eol=lf
+*.md    text eol=lf
+*.txt   text eol=lf
+
+# Windows-specific scripts must stay CRLF
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+*.ps1   text eol=crlf
+
+# Binary files (never touched)
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.pdf   binary
