@@ -141,7 +141,7 @@
     ['step-repo', 'step-branch', 'step-commits', 'step-options', 'step-order'].forEach(reopenStep);
     ['step-branch', 'step-commits', 'step-options', 'step-order'].forEach(lock);
 
-    // ---- progress + summary panes ----
+    // ---- progress + summary + log panes ----
     Object.keys(liRefs).forEach((k) => delete liRefs[k]);
     $('progressList').innerHTML = '';
     $('progressMeta').textContent = '';
@@ -150,6 +150,7 @@
     setRunStatus('hide');
     $('summary').classList.add('hidden');
     $('summary').innerHTML = '';
+    $('logView').innerHTML = '';           // clear the live log so each session starts fresh
 
     // ---- start button + freeze state ----
     const sb = $('startBtn');
