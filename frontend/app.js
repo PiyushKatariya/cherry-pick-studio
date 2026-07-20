@@ -122,7 +122,8 @@
 
     // ---- inputs & status text ----
     $('branchName').value = '';
-    $('branchList').innerHTML = '';
+    branchCombo.setData([]);
+    branchCombo.hide();
     $('commitInput').value = '';
     $('scanDeepChk').checked = false;
     $('scanDepth').value = '200';
@@ -264,13 +265,96 @@
     }
   }
 
-  // Bind origin branches to the branch input as a searchable dropdown (datalist).
+  // ---- searchable branch dropdown (custom combobox) ----------------------
+  // A native <datalist> gives no visible highlight while arrowing through
+  // options, so users can't tell what's selected. This custom combobox clearly
+  // marks the active option and supports full keyboard + mouse selection.
+  const branchCombo = (() => {
+    const input = $('branchName');
+    const listBox = $('branchListBox');
+    let all = [];      // every origin branch
+    let shown = [];    // currently filtered subset
+    let active = -1;   // highlighted index within `shown`
+    let open = false;
+
+    const filtered = () => {
+      const q = input.value.trim().toLowerCase();
+      return q ? all.filter((b) => b.toLowerCase().includes(q)) : all.slice();
+    };
+
+    function render() {
+      listBox.innerHTML = shown.length
+        ? shown.map((b, i) =>
+            `<li role="option" id="branchOpt${i}" class="${i === active ? 'active' : ''}" aria-selected="${i === active}">${esc(b)}</li>`
+          ).join('')
+        : '<li class="empty" aria-disabled="true">No matching branch</li>';
+      const el = listBox.querySelector('li.active');
+      if (el) el.scrollIntoView({ block: 'nearest' });
+      input.setAttribute('aria-activedescendant', active >= 0 ? `branchOpt${active}` : '');
+    }
+
+    function openList(resetActive) {
+      if (!all.length || input.disabled) return;   // no data / locked → plain text
+      shown = filtered();
+      active = resetActive ? (shown.length ? 0 : -1) : Math.min(active, shown.length - 1);
+      render();
+      listBox.classList.remove('hidden');
+      input.setAttribute('aria-expanded', 'true');
+      open = true;
+    }
+
+    function hide() {
+      listBox.classList.add('hidden');
+      input.setAttribute('aria-expanded', 'false');
+      open = false;
+      active = -1;
+    }
+
+    function choose(i) {
+      if (i < 0 || i >= shown.length) return;
+      input.value = shown[i];
+      hide();
+      input.focus();
+    }
+
+    function move(delta) {
+      if (!open) { openList(true); return; }
+      if (!shown.length) return;
+      active = (active + delta + shown.length) % shown.length;
+      render();
+    }
+
+    input.addEventListener('focus', () => openList(true));
+    input.addEventListener('input', () => openList(true));
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown') { e.preventDefault(); move(1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); move(-1); }
+      else if (e.key === 'Enter') { if (open && active >= 0) { e.preventDefault(); choose(active); } }
+      else if (e.key === 'Escape') { if (open) { e.preventDefault(); hide(); } }
+    });
+    // mousedown (not click) so selection fires before the input's blur closes the list
+    listBox.addEventListener('mousedown', (e) => {
+      const li = e.target.closest('li[role=option]');
+      if (!li) return;
+      e.preventDefault();
+      choose([...listBox.children].indexOf(li));
+    });
+    // close when a click lands outside the combo
+    document.addEventListener('click', (e) => { if (!$('branchCombo').contains(e.target)) hide(); });
+
+    return {
+      setData: (branches) => { all = branches || []; },
+      hide,
+    };
+  })();
+
+  // Fetch origin branches after a repo check and hand them to the combobox.
   // Best-effort: on any failure the input stays a plain text box.
   async function populateBranchList() {
     try {
       const r = await T.request('listBranches', { repoPath: state.repoPath });
-      $('branchList').innerHTML = (r.branches || []).map((b) => `<option value="${esc(b)}"></option>`).join('');
-    } catch (_) { /* leave as plain text input */ }
+      branchCombo.setData(r.branches || []);
+    } catch (_) { branchCombo.setData([]); }
   }
 
   $('checkRepoBtn').addEventListener('click', (ev) => withBusy(ev.currentTarget, 'Checking repository…', runRepoCheck));

@@ -46,8 +46,11 @@
       <div class="step locked" id="step-branch">
         <h2><span class="n">2</span> Client branch</h2>
         <div class="row">
-          <input id="branchName" type="text" list="branchList" placeholder="Type to search origin branches…" autocomplete="off" />
-          <datalist id="branchList"></datalist>
+          <div class="combo" id="branchCombo">
+            <input id="branchName" type="text" placeholder="Type or pick an origin branch…" autocomplete="off"
+                   role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="branchListBox" />
+            <ul id="branchListBox" class="combo-list hidden" role="listbox" aria-label="Origin branches"></ul>
+          </div>
           <button id="checkBranchBtn" class="btn">Check</button>
         </div>
         <div id="branchStatus" class="status"></div>
