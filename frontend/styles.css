@@ -99,6 +99,14 @@ table.ctable th, table.ctable td { text-align: left; padding: 6px 8px; border-bo
 table.ctable th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 11px; }
 table.ctable td.mono { font-family: "Consolas", monospace; }
 table.ctable tr.merge td { color: var(--yellow); }
+/* drag-to-reorder plan rows */
+table.ctable tbody tr[draggable] { cursor: grab; }
+table.ctable td.drag { color: var(--muted); cursor: grab; text-align: center; width: 20px; user-select: none; }
+table.ctable tr.dragging { opacity: .4; }
+table.ctable tr.dragover td { border-top: 2px solid var(--accent); }
+table.ctable td.paste { text-align: center; }
+/* run order differs from the order the user pasted */
+table.ctable td.paste.reordered { color: var(--accent2); font-weight: 700; }
 
 /* progress */
 .run-head { display: flex; align-items: center; justify-content: space-between; }

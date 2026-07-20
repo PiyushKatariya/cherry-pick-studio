@@ -26,16 +26,6 @@
     <!-- ================= SETUP COLUMN ================= -->
     <section class="setup">
 
-      <!-- Resume banner -->
-      <div id="resumeBanner" class="banner hidden">
-        <strong>⚠ Previous session found.</strong>
-        <div id="resumeDetails" class="mono small"></div>
-        <div class="row">
-          <button id="resumeStartBtn" class="btn small">Resume</button>
-          <button id="resumeIgnoreBtn" class="btn small ghost">Start fresh</button>
-        </div>
-      </div>
-
       <!-- Step 1: Repository -->
       <div class="step" id="step-repo">
         <h2><span class="n">1</span> Repository</h2>
@@ -98,8 +88,13 @@
           <input id="logBase" type="text" placeholder="(default)" />
         </div>
         <div class="opt">
-          <label class="opt-label">Already-applied scan depth <em>(branch commits to patch-scan; blank = 200, 0 = exact-hash only / fastest)</em></label>
-          <input id="scanDepth" type="number" min="0" step="1" placeholder="200" />
+          <label class="opt-label">Already-applied detection</label>
+          <label class="radio"><input type="checkbox" id="scanDeepChk" /> Deep-scan branch for equivalent commits <em>(patch-id)</em></label>
+          <p class="hint">Off (default): match by commit hash only — fastest. On: also patch-scan recent branch commits to catch already-applied changes with different hashes.</p>
+          <div id="scanDepthWrap" class="row hidden">
+            <label class="opt-label" style="margin:0">Branch commits to scan</label>
+            <input id="scanDepth" type="number" min="1" step="1" value="200" style="max-width:120px" />
+          </div>
         </div>
       </div>
 
@@ -110,7 +105,7 @@
         <div id="appliedNote" class="status"></div>
         <div id="orderTableWrap"></div>
         <div id="orderActions" class="row hidden">
-          <button id="reorderBtn" class="btn ghost small">Reorder…</button>
+          <button id="editCommitsBtn" class="btn ghost small">✏ Edit commits</button>
           <button id="startBtn" class="btn go">▶ Start cherry-pick</button>
         </div>
       </div>

@@ -81,6 +81,21 @@ In `analyzeRun`, compute `scanDepth = scanDeepChk.checked ? (parseInt(scanDepth
 .value,10) || 200) : 0` and always send it. `core/git.js alreadyApplied`
 already treats `0` as exact-hash-only, so the default is the fast path.
 
+### 6. Show paste order vs. tool (run) order
+The tool re-sorts pasted commits by date (`bridge.js:108`, oldest first) and
+currently shows only that sorted result, so the user cannot tell it reordered
+anything. `state.valid` preserves the paste order; `state.plan` holds the
+sorted/run order; both share the `.input` field (`git.js:210`).
+
+In `renderPlan`, add a **"You pasted #"** column next to the leading run-order
+`#`. For each plan row, its paste position is `state.valid.findIndex(v =>
+v.input === c.input) + 1`. Add a legend line above the table: "Rows run
+top-to-bottom (sorted oldest→newest by date). 'You pasted #' shows the order you
+entered them." When a row's run position differs from its paste position, style
+the "You pasted #" cell so the change stands out (e.g. `.reordered` class in the
+accent color). After a drag (#4) the run-order column reflects the new order
+while "You pasted #" stays fixed to the original paste.
+
 ## Out of scope
 Competitor-inspired features (`-x` provenance, multi-target branches, auto-open
 PR, etc.) are tracked separately and not part of this change.
