@@ -84,6 +84,18 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); }
 .banner { background: #2a2310; border: 1px solid var(--yellow); border-radius: 10px; padding: 14px; }
 .banner .row { margin-top: 10px; }
 
+/* header "current process" pill */
+.activity {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 4px 11px; border-radius: 20px; font-size: 12px; font-weight: 600;
+  background: var(--panel2); color: var(--muted); border: 1px solid var(--line);
+  max-width: 320px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.activity .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+.activity.busy { color: var(--cyan); border-color: var(--cyan); background: #15233a; }
+.activity.busy .dot { background: var(--cyan); animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+
 .badge { padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
 .badge.muted { background: var(--panel2); color: var(--muted); }
 .badge.live { background: var(--green); color: #06140d; }

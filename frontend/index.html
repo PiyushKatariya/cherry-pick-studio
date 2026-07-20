@@ -16,6 +16,7 @@
       </div>
     </div>
     <div class="topbar-actions" style="display:flex;align-items:center;gap:10px">
+      <span id="activity" class="activity" title="What the tool is doing right now"><span class="dot"></span><span id="activityText">Ready</span></span>
       <button id="newSessionTopBtn" class="btn ghost small" title="Clear everything and start a new cherry-pick session">🔄 New session</button>
       <button id="helpBtn" class="btn ghost small" title="Open the user guide">📖 Help</button>
       <span id="transportBadge" class="badge muted">connecting…</span>
@@ -45,7 +46,8 @@
       <div class="step locked" id="step-branch">
         <h2><span class="n">2</span> Client branch</h2>
         <div class="row">
-          <input id="branchName" type="text" placeholder="client/acme-release-2026Q1" />
+          <input id="branchName" type="text" list="branchList" placeholder="Type to search origin branches…" autocomplete="off" />
+          <datalist id="branchList"></datalist>
           <button id="checkBranchBtn" class="btn">Check</button>
         </div>
         <div id="branchStatus" class="status"></div>

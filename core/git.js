@@ -121,6 +121,21 @@ async function branchExistsOnRemote(repoPath, branch) {
   return r.code === 0 && r.stdout.trim().length > 0;
 }
 
+// Live list of branch names on origin (independent of local fetch state).
+// Returns [] on any failure so the UI can fall back to a plain text input.
+async function listRemoteBranches(repoPath) {
+  const r = await git(repoPath, ['ls-remote', '--heads', 'origin']);
+  if (r.code !== 0) return [];
+  const prefix = 'refs/heads/';
+  return r.stdout
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((l) => { const i = l.indexOf(prefix); return i === -1 ? null : l.slice(i + prefix.length); })
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
+}
+
 async function localBranchExists(repoPath, branch) {
   const r = await git(repoPath, ['rev-parse', '--verify', '--quiet', `refs/heads/${branch}`]);
   return r.code === 0;
@@ -483,6 +498,7 @@ module.exports = {
   stashPop,
   fetch,
   branchExistsOnRemote,
+  listRemoteBranches,
   localBranchExists,
   currentBranch,
   unpushedCommits,

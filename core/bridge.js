@@ -12,6 +12,7 @@ const fs = require('fs');
 const path = require('path');
 const g = require('./git');
 const { Session, parseProgressFile } = require('./session');
+const { createTracker } = require('./tracklog');
 
 // Default logs live INSIDE the tool folder (not in the target repo):
 //   <cherry-pick-studio>/logs/<YYYYMMDD-hhmmAM|PM>/...
@@ -36,8 +37,9 @@ function runFolder() {
   return `${pad(h12)}-${pad(d.getMinutes())}-${pad(d.getSeconds())}_${ampm}`;
 }
 
-function createBridge(send) {
+function createBridge(send, meta = {}) {
   let session = null;
+  const tracker = createTracker(meta);
 
   function wireSession(s) {
     s.on('log', (p) => send({ type: 'log', ...p }));
@@ -45,13 +47,20 @@ function createBridge(send) {
     s.on('await', (p) => send({ type: 'await', ...p }));
     s.on('summary', (p) => send({ type: 'summary', ...p }));
     s.on('done', (p) => send({ type: 'done', ...p }));
-    s.on('error', (p) => send({ type: 'error', ...p }));
+    s.on('error', (p) => {
+      tracker.error(0, 'session.run', { repoPath: s.repoPath, branch: s.branch }, p && p.message);
+      send({ type: 'error', ...p });
+    });
   }
 
   async function handle(msg) {
     const id = msg.id;
+    // Audit trail: record every command + its inputs (id/cmd stripped from params).
+    const params = (() => { const { cmd, id: _id, ...rest } = msg || {}; return rest; })();
+    const seq = tracker.begin(msg && msg.cmd, params);
     const reply = (data) => send({ type: 'result', id, ok: true, data });
-    const fail = (error) => send({ type: 'result', id, ok: false, error: String(error) });
+    const sendFail = (error) => send({ type: 'result', id, ok: false, error: String(error) });
+    const fail = (error) => { tracker.error(seq, msg.cmd, params, error); return sendFail(error); };
 
     try {
       switch (msg.cmd) {
@@ -75,6 +84,11 @@ function createBridge(send) {
           const name = `cherry-pick-studio_${ts}`;
           const r = await g.stashPush(msg.repoPath, name);
           return r.ok ? reply(r) : fail(r.error);
+        }
+
+        case 'listBranches': {
+          const branches = await g.listRemoteBranches(msg.repoPath);
+          return reply({ branches });
         }
 
         case 'checkBranch': {
@@ -211,13 +225,15 @@ function createBridge(send) {
           return fail(`Unknown command: ${msg.cmd}`);
       }
     } catch (err) {
-      return fail(err.message);
+      tracker.error(seq, msg && msg.cmd, params, err);   // exception: keep the stack
+      return sendFail(err.message);
     }
   }
 
   function dispose() {
     if (session) session.removeAllListeners();
     session = null;
+    tracker.close();
   }
 
   return { handle, dispose };

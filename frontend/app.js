@@ -27,15 +27,26 @@
   // Run an async button action while disabling the button + showing a spinner.
   // Guards against double-clicks; restores the button when done (unless its step
   // has since been marked .done, in which case it stays disabled).
+  // Global "what's happening right now" indicator in the header. Idle = "Ready".
+  function setActivity(text) {
+    const t = $('activityText');
+    if (!t) return;
+    const busy = !!text && text !== 'Ready';
+    t.textContent = text || 'Ready';
+    $('activity').classList.toggle('busy', busy);
+  }
+
   async function withBusy(btn, label, fn) {
     if (btn.disabled) return;            // already in flight or locked
     const prevHTML = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = `<span class="spin"></span>${label || 'Working…'}`;
+    setActivity(label || 'Working…');
     try {
       return await fn();
     } finally {
       btn.innerHTML = prevHTML;
+      setActivity('Ready');
       const step = btn.closest('.step');
       // Keep the button disabled if its step is fully done, or if it was
       // explicitly locked during the action (e.g. a validated input's button).
@@ -81,14 +92,18 @@
     if (mode === 'hide') {
       el.classList.add('hidden');
       bar.classList.remove('active');
+      setActivity('Ready');
       return;
     }
     el.classList.remove('hidden');
     el.classList.toggle('waiting', mode === 'waiting');
-    $('runStatusText').textContent = text ||
+    const msg = text ||
       (mode === 'waiting' ? 'Paused — waiting for your response' : 'Cherry-pick in progress');
+    $('runStatusText').textContent = msg;
     $('runDots').style.display = mode === 'waiting' ? 'none' : '';
     bar.classList.toggle('active', mode === 'running');   // animated stripes only while running
+    // Mirror the run phase into the always-visible header activity pill.
+    setActivity(msg);
   }
 
   // Reset the whole wizard to a fresh state so the user can run another batch
@@ -107,6 +122,7 @@
 
     // ---- inputs & status text ----
     $('branchName').value = '';
+    $('branchList').innerHTML = '';
     $('commitInput').value = '';
     $('scanDeepChk').checked = false;
     $('scanDepth').value = '200';
@@ -139,6 +155,7 @@
     sb.disabled = false;
     if (startBtnLabel) sb.innerHTML = startBtnLabel;
     freezeSetup(false);
+    setActivity('Ready');
 
     $('repoPath').focus();
     appendLog('info', '— new session — paste the next batch when ready.');
@@ -239,6 +256,7 @@
       // (Abort/Stash remain available; they're the only remediation actions.)
       lockControls($('repoPath'), $('browseBtn'), $('checkRepoBtn'));
       unlock('step-branch');
+      populateBranchList();
       checkResume();
     } catch (err) {
       setStatus(s, line('err', '✗ ' + err.message));
@@ -246,7 +264,16 @@
     }
   }
 
-  $('checkRepoBtn').addEventListener('click', (ev) => withBusy(ev.currentTarget, 'Checking…', runRepoCheck));
+  // Bind origin branches to the branch input as a searchable dropdown (datalist).
+  // Best-effort: on any failure the input stays a plain text box.
+  async function populateBranchList() {
+    try {
+      const r = await T.request('listBranches', { repoPath: state.repoPath });
+      $('branchList').innerHTML = (r.branches || []).map((b) => `<option value="${esc(b)}"></option>`).join('');
+    } catch (_) { /* leave as plain text input */ }
+  }
+
+  $('checkRepoBtn').addEventListener('click', (ev) => withBusy(ev.currentTarget, 'Checking repository…', runRepoCheck));
 
   $('abortPendingBtn').addEventListener('click', (ev) => withBusy(ev.currentTarget, 'Aborting…', async () => {
     await T.request('abortPending', { repoPath: state.repoPath });

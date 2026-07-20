@@ -8,6 +8,7 @@
 
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
+const os = require('os');
 const { createBridge } = require('../core/bridge');
 
 let win = null;
@@ -31,7 +32,7 @@ function createWindow() {
   const send = (obj) => {
     if (win && !win.isDestroyed()) win.webContents.send('cps:event', obj);
   };
-  bridge = createBridge(send);
+  bridge = createBridge(send, { transport: 'desktop', user: (() => { try { return os.userInfo().username; } catch (_) { return null; } })() });
 
   win.loadFile(path.join(__dirname, '..', 'frontend', 'index.html'));
   win.on('closed', () => {

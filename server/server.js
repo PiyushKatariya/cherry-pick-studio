@@ -23,11 +23,12 @@ app.get('/health', (_req, res) => res.json({ ok: true }));
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
 
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, req) => {
   const send = (obj) => {
     if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(obj));
   };
-  const bridge = createBridge(send);
+  const client = (req && req.socket && req.socket.remoteAddress) || null;
+  const bridge = createBridge(send, { transport: 'web', client });
 
   ws.on('message', (raw) => {
     let msg;
