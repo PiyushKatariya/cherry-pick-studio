@@ -83,6 +83,33 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); }
 .combo-list li:hover:not(.active):not(.empty) { background: var(--line); }
 .combo-list li.empty { color: var(--muted); cursor: default; font-style: italic; font-family: inherit; }
 
+/* Caret that opens the saved-repository list — the repo input isn't focused on
+   load, so without it the list would be invisible to a mouse user. */
+.caret {
+  position: absolute; top: 50%; right: 6px; transform: translateY(-50%);
+  background: none; border: none; color: var(--muted); cursor: pointer;
+  font-size: 13px; line-height: 1; padding: 4px 6px; border-radius: 5px;
+}
+.caret:hover:not(:disabled) { color: var(--text); background: var(--line); }
+.caret:disabled { opacity: .35; cursor: not-allowed; }
+.combo > input[type=text]#repoPath { padding-right: 30px; }   /* room for the caret */
+
+/* Saved-repository rows: pin · path · remembered branch · forget */
+.repo-list li {
+  display: flex; align-items: center; gap: 8px; white-space: nowrap;
+}
+.repo-list .rp { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.repo-list .rp.missing { color: var(--muted); text-decoration: line-through; }
+.repo-list .rp.missing em { font-style: normal; text-decoration: none; }
+.repo-list .rb { color: var(--muted); font-size: 12px; flex: none; max-width: 34%; overflow: hidden; text-overflow: ellipsis; }
+.repo-list li.active .rb { color: rgba(255,255,255,.8); }
+.repo-list .pin, .repo-list .forget { flex: none; padding: 0 3px; border-radius: 4px; font-family: initial; }
+.repo-list .pin { opacity: .28; filter: grayscale(1); }        /* unpinned = dimmed */
+.repo-list .pin.on { opacity: 1; filter: none; }
+.repo-list .pin:hover, .repo-list .forget:hover { opacity: 1; filter: none; background: rgba(255,255,255,.16); }
+.repo-list .forget { color: var(--muted); }
+.repo-list li.active .forget { color: rgba(255,255,255,.85); }
+
 .btn {
   background: var(--accent); color: #fff; border: none; padding: 9px 15px; border-radius: 7px;
   cursor: pointer; font-size: 13px; font-weight: 600; white-space: nowrap;

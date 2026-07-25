@@ -6,18 +6,22 @@
 'use strict';
 
 const http = require('http');
-const path = require('path');
 const express = require('express');
 const { WebSocketServer } = require('ws');
 const { createBridge } = require('../core/bridge');
+const paths = require('../core/paths');
 
 const PORT = process.env.PORT || 4317;
-const FRONTEND = path.join(__dirname, '..', 'frontend');
+// Loopback only. The bridge runs git commands against any path on this machine,
+// so the UI must not be reachable from the network. This also keeps Windows from
+// raising a firewall prompt on first launch.
+const HOST = '127.0.0.1';
+const FRONTEND = paths.assetDir('frontend');
 
 const app = express();
 app.use(express.static(FRONTEND));
 // Serve the documentation folder so the in-app Help button can open the guide.
-app.use('/docs', express.static(path.join(__dirname, '..', 'docs')));
+app.use('/docs', express.static(paths.assetDir('docs')));
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 const server = http.createServer(app);
@@ -44,7 +48,7 @@ wss.on('connection', (ws, req) => {
   send({ type: 'hello', transport: 'web' });
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, HOST, () => {
   /* eslint-disable no-console */
   console.log('');
   console.log('  Cherry-Pick Studio (web) running:');

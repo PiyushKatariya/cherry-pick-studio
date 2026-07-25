@@ -31,10 +31,16 @@
       <div class="step" id="step-repo">
         <h2><span class="n">1</span> Repository</h2>
         <div class="row">
-          <input id="repoPath" type="text" placeholder="Path to your git repo (e.g. D:\Projects\MyRepo)" />
+          <div class="combo" id="repoCombo">
+            <input id="repoPath" type="text" placeholder="Path to your git repo (e.g. D:\Projects\MyRepo)" autocomplete="off"
+                   role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="repoListBox" />
+            <button id="repoCaret" class="caret" type="button" title="Show saved repositories" aria-label="Show saved repositories">▾</button>
+            <ul id="repoListBox" class="combo-list repo-list hidden" role="listbox" aria-label="Saved repositories"></ul>
+          </div>
           <button id="browseBtn" class="btn ghost hidden">Browse…</button>
           <button id="checkRepoBtn" class="btn">Check</button>
         </div>
+        <p id="repoHint" class="hint hidden"></p>
         <div id="repoStatus" class="status"></div>
         <div id="repoActions" class="row hidden">
           <button id="abortPendingBtn" class="btn warn small hidden">Abort pending op</button>
@@ -144,6 +150,7 @@
   </div>
 
   <script src="transport.js"></script>
+  <script src="combo.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

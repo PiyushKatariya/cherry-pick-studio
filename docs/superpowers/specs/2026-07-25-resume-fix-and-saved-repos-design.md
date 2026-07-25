@@ -168,7 +168,14 @@ createCombo({ input, listBox, container, renderRow, onChoose, onRowAction })
 The module owns filtering, active-row tracking, arrow/Enter/Escape handling,
 `aria-activedescendant`, the outside-click close, and the `input.disabled` guard.
 Each call site supplies its own `renderRow`. The branch combobox is rebuilt on it
-with no behaviour change; `app.js` drops back under 800 lines.
+with no behaviour change.
+
+The point of the extraction is that the second combobox costs no duplicated
+mechanics — not a smaller `app.js`. The picker adds more than the extraction
+removes, so `app.js` ends up slightly longer (835 → ~860 lines). Moving the
+picker out too was considered and rejected: it needs `withBusy`, `runRepoCheck`,
+`lockControls`, `appendLog`, and the step-locking state, so the seam would carry
+more wiring than it removed.
 
 `onRowAction(name, item)` handles clicks on controls inside a row (pin, forget)
 without selecting the row or closing the list.
@@ -266,9 +273,19 @@ failure in them degrades to today's behaviour and never blocks a cherry-pick.
 
 ## 6. Testing
 
-`core/selftest.js` (run by `npm test`) is a real integration test — it builds a
-bare remote plus a working clone in a temp dir and drives `Session` end to end.
-Extend it in the same style, using `CPS_DATA_DIR` pointed at the temp workspace.
+`core/selftest.js` is a real integration test — it builds a bare remote plus a
+working clone in a temp dir and drives `Session` end to end. It takes seconds per
+run, which is too slow to drive a red-green loop over pure functions, so the tests
+split by what they need:
+
+- **`core/selftest-units.js` (new)** — everything that needs no git: `paths`,
+  `repostore`, `findLatestResume`. Runs in milliseconds. `npm run test:units`.
+- **`core/selftest.js`** — anything needing a real repo: the progress-file
+  lifecycle across a live `Session`, and the bridge commands.
+
+`npm test` runs the unit suite then the integration suite. Both point
+`CPS_DATA_DIR` at a temp folder so a test can never touch the real `config/` or
+`logs/`.
 
 **Resume (§2):**
 1. After the existing successful 3-commit run, assert the progress file is
@@ -297,6 +314,16 @@ Extend it in the same style, using `CPS_DATA_DIR` pointed at the temp workspace.
 **Paths (§4):**
 15. `CPS_DATA_DIR` is honoured; unset resolves to the tool folder.
 16. `assetDir('frontend')` is a passthrough in a dev checkout.
+17. A packaged run resolves under `APPDATA`, falling back to the home dir, and
+    `CPS_DATA_DIR` still outranks it. Tested through a pure `resolveDataRoot`
+    helper, since a real asar bundle is not available to the suite.
+
+**Bridge (§3.2):**
+18. A repo that passes `preflight` is remembered; one that fails is not.
+19. `listRepos` returns the saved repos annotated with `exists`.
+20. `pinRepo` and `forgetRepo` take effect.
+21. `findResume` returns the interrupted session for this repo and nothing for an
+    unrelated one — the reported bug, exercised through the transport contract.
 
 **Frontend and server** have no test harness, so they get a manual checklist in
 the PR description:
@@ -403,5 +430,7 @@ way** — packaging removes the Node dependency, not the git one. Expect roughly
 | `frontend/app.js` | repo picker; rebuild branch combo on `combo.js`; conditional delete-progress button; richer resume modal |
 | `frontend/index.html` | repo combo markup + caret; load `combo.js` |
 | `frontend/styles.css` | repo row styles (branch, missing, pin, forget) |
-| `core/selftest.js` | tests 1–16 |
+| `core/selftest-units.js` | **new** — git-free suite: tests 3–17 |
+| `core/selftest.js` | tests 1–2 and 18–21; `CPS_DATA_DIR` isolation |
+| `package.json` | `test` runs both suites; new `test:units` |
 | `.gitignore` | add `config/` (the tool's data dir, alongside `logs/`) |

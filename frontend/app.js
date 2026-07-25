@@ -159,6 +159,11 @@
     freezeSetup(false);
     setActivity('Ready');
 
+    // reopenStep re-enabled the repo input and its caret, so re-offer the saved
+    // list — it may have gained the repo used in the session just finished.
+    pendingBranch = '';
+    loadRepos();
+
     $('repoPath').focus();
     appendLog('info', '— new session — paste the next batch when ready.');
   }
@@ -172,6 +177,9 @@
     b.textContent = kind === 'electron' ? 'desktop' : 'web';
     b.className = 'badge live';
     if (T.isElectron) $('browseBtn').classList.remove('hidden');
+    // Offer previously used repos, but never pre-fill the path — Check must not
+    // be able to fire against a repo the user hasn't looked at.
+    loadRepos();
   });
 
   // ---- Help button: open the user guide ----------------------------------
@@ -225,6 +233,74 @@
     if (dir) $('repoPath').value = dir;
   }));
 
+  // ---- saved repositories -------------------------------------------------
+  // Repos are remembered automatically once they pass Check, so the user picks
+  // from a list instead of retyping a path every session. Pinned ones sort to
+  // the top; the rest are the most recent 15.
+
+  // Branch to pre-fill in Step 2 once the chosen repo passes Check.
+  let pendingBranch = '';
+
+  function repoRow(r) {
+    const missing = r.exists === false;   // null = unknown (UNC), not missing
+    return (
+      `<span class="pin${r.pinned ? ' on' : ''}" data-act="pin" title="${r.pinned ? 'Unpin' : 'Pin to top'}">📌</span>` +
+      `<span class="rp${missing ? ' missing' : ''}">${esc(r.path)}${missing ? ' <em>(missing)</em>' : ''}</span>` +
+      `<span class="rb">${esc(r.branch || '')}</span>` +
+      `<span class="forget" data-act="forget" title="Forget this repo">✕</span>`
+    );
+  }
+
+  const repoCombo = window.Combo.create({
+    input: $('repoPath'),
+    listBox: $('repoListBox'),
+    container: $('repoCombo'),
+    idPrefix: 'repoOpt',
+    emptyText: 'No matching saved repository',
+    matches: (r, q) => r.path.toLowerCase().includes(q),
+    renderRow: repoRow,
+    onChoose: (r) => {
+      $('repoPath').value = r.path;
+      pendingBranch = r.branch || '';
+      repoCombo.hide();
+      // Check is read-only, so running it here turns two clicks into one.
+      withBusy($('checkRepoBtn'), 'Checking repository…', runRepoCheck);
+    },
+    onAction: async (act, r) => {
+      try {
+        if (act === 'pin') await T.request('pinRepo', { repoPath: r.path, pinned: !r.pinned });
+        else if (act === 'forget') await T.request('forgetRepo', { repoPath: r.path });
+      } catch (err) {
+        appendLog('warn', `Could not update the saved repo list: ${err.message}`);
+      }
+      await loadRepos();
+      repoCombo.refresh();   // keep the list open so several edits are possible
+    },
+  });
+
+  // Best-effort: on any failure the repo input stays a plain text box.
+  async function loadRepos() {
+    let repos = [];
+    try {
+      const r = await T.request('listRepos', {});
+      repos = r.repos || [];
+    } catch (_) {}
+    repoCombo.setData(repos);
+    // Never advertise the picker once the repo is locked in: the caret is
+    // disabled by then, so "click ▾" would be telling the user to do the
+    // impossible. Checked here because loadRepos() also runs after a Check.
+    const hint = $('repoHint');
+    const show = repos.length > 0 && !$('repoPath').disabled;
+    hint.classList.toggle('hidden', !show);
+    if (show) {
+      hint.innerHTML =
+        `${repos.length} saved ${repos.length === 1 ? 'repository' : 'repositories'} — ` +
+        `click <b>▾</b> to pick one, or type / Browse for a new one.`;
+    }
+  }
+
+  $('repoCaret').addEventListener('click', (e) => { e.preventDefault(); repoCombo.toggle(); });
+
   // Core repo preflight — callable directly (so stash/abort can refresh the
   // status without going through the now-disabled Check button).
   async function runRepoCheck() {
@@ -256,8 +332,18 @@
       setStatus(s, html);
       // Validated OK → lock the repo path + Browse + Check so it can't change.
       // (Abort/Stash remain available; they're the only remediation actions.)
-      lockControls($('repoPath'), $('browseBtn'), $('checkRepoBtn'));
+      repoCombo.hide();
+      lockControls($('repoPath'), $('repoCaret'), $('browseBtn'), $('checkRepoBtn'));
+      $('repoHint').classList.add('hidden');
       unlock('step-branch');
+      // Preflight just remembered this repo, so keep the list in step.
+      loadRepos();
+      // A repo picked from the saved list carries the branch it was last used
+      // with. Pre-fill it only — Step 2's own Check still has to run.
+      if (pendingBranch) {
+        $('branchName').value = pendingBranch;
+        pendingBranch = '';
+      }
       populateBranchList();
       checkResume();
     } catch (err) {
@@ -266,88 +352,20 @@
     }
   }
 
-  // ---- searchable branch dropdown (custom combobox) ----------------------
-  // A native <datalist> gives no visible highlight while arrowing through
-  // options, so users can't tell what's selected. This custom combobox clearly
-  // marks the active option and supports full keyboard + mouse selection.
-  const branchCombo = (() => {
-    const input = $('branchName');
-    const listBox = $('branchListBox');
-    let all = [];      // every origin branch
-    let shown = [];    // currently filtered subset
-    let active = -1;   // highlighted index within `shown`
-    let open = false;
-
-    const filtered = () => {
-      const q = input.value.trim().toLowerCase();
-      return q ? all.filter((b) => b.toLowerCase().includes(q)) : all.slice();
-    };
-
-    function render() {
-      listBox.innerHTML = shown.length
-        ? shown.map((b, i) =>
-            `<li role="option" id="branchOpt${i}" class="${i === active ? 'active' : ''}" aria-selected="${i === active}">${esc(b)}</li>`
-          ).join('')
-        : '<li class="empty" aria-disabled="true">No matching branch</li>';
-      const el = listBox.querySelector('li.active');
-      if (el) el.scrollIntoView({ block: 'nearest' });
-      input.setAttribute('aria-activedescendant', active >= 0 ? `branchOpt${active}` : '');
-    }
-
-    function openList(resetActive) {
-      if (!all.length || input.disabled) return;   // no data / locked → plain text
-      shown = filtered();
-      active = resetActive ? (shown.length ? 0 : -1) : Math.min(active, shown.length - 1);
-      render();
-      listBox.classList.remove('hidden');
-      input.setAttribute('aria-expanded', 'true');
-      open = true;
-    }
-
-    function hide() {
-      listBox.classList.add('hidden');
-      input.setAttribute('aria-expanded', 'false');
-      open = false;
-      active = -1;
-    }
-
-    function choose(i) {
-      if (i < 0 || i >= shown.length) return;
-      input.value = shown[i];
-      hide();
-      input.focus();
-    }
-
-    function move(delta) {
-      if (!open) { openList(true); return; }
-      if (!shown.length) return;
-      active = (active + delta + shown.length) % shown.length;
-      render();
-    }
-
-    input.addEventListener('focus', () => openList(true));
-    input.addEventListener('input', () => openList(true));
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowDown') { e.preventDefault(); move(1); }
-      else if (e.key === 'ArrowUp') { e.preventDefault(); move(-1); }
-      else if (e.key === 'Enter') { if (open && active >= 0) { e.preventDefault(); choose(active); } }
-      else if (e.key === 'Escape') { if (open) { e.preventDefault(); hide(); } }
-    });
-    // mousedown (not click) so selection fires before the input's blur closes the list
-    listBox.addEventListener('mousedown', (e) => {
-      const li = e.target.closest('li[role=option]');
-      if (!li) return;
-      e.preventDefault();
-      choose([...listBox.children].indexOf(li));
-    });
-    // close when a click lands outside the combo
-    document.addEventListener('click', (e) => { if (!$('branchCombo').contains(e.target)) hide(); });
-
-    return {
-      setData: (branches) => { all = branches || []; },
-      hide,
-    };
-  })();
+  // ---- searchable branch dropdown ----------------------------------------
+  const branchCombo = window.Combo.create({
+    input: $('branchName'),
+    listBox: $('branchListBox'),
+    container: $('branchCombo'),
+    idPrefix: 'branchOpt',
+    emptyText: 'No matching branch',
+    renderRow: (b) => esc(b),
+    onChoose: (b) => {
+      $('branchName').value = b;
+      branchCombo.hide();
+      $('branchName').focus();
+    },
+  });
 
   // Fetch origin branches after a repo check and hand them to the combobox.
   // Best-effort: on any failure the input stays a plain text box.
@@ -381,18 +399,21 @@
     try {
       const r = await T.request('findResume', { repoPath: state.repoPath, logBase: $('logBase').value.trim() });
       if (!r.found) return;
-      modalResume(r.data, r.file);
+      modalResume(r.data, r.file, r.mtimeMs);
     } catch (_) {}
   }
 
-  // A previous session was found — force a Resume / Start-fresh choice with a
-  // blocking modal so the user can't accidentally proceed past it.
-  function modalResume(d, file) {
+  // An UNFINISHED session was found — force a Resume / Start-fresh choice with a
+  // blocking modal so the user can't accidentally proceed past it. Completed runs
+  // never reach here: the engine deletes its progress file when it finishes, and
+  // findResume ignores files that belong to another repo or have nothing left.
+  function modalResume(d, file, mtimeMs) {
     const remaining = (d.remaining_commits || '').split(' ').filter(Boolean).length;
+    const when = mtimeMs ? new Date(mtimeMs).toLocaleString() : 'unknown';
     showModal(`
-      <h3>⚠ Previous session found</h3>
-      <p>An unfinished cherry-pick run was detected for this repository.</p>
-      <div class="mono small">branch=${esc(d.branch)}  done=${esc(d.last_completed_index)}  total=${esc(d.total_commits)}  remaining=${remaining}</div>
+      <h3>⚠ Unfinished session found</h3>
+      <p>A cherry-pick run for this repository stopped before it finished.</p>
+      <div class="mono small">repo=${esc(d.repo_path)}<br>saved=${esc(when)}<br>branch=${esc(d.branch)}  done=${esc(d.last_completed_index)}  total=${esc(d.total_commits)}  remaining=${remaining}</div>
       <div class="opt-row" data-a="resume"><b>Resume</b> — load this session's branch &amp; remaining commits into the wizard.</div>
       <div class="opt-row" data-a="fresh"><b>Start fresh</b> — discard the saved progress file and begin a new run.</div>
     `);
@@ -797,6 +818,10 @@
     $('progressBar').style.width = '100%';
     const stashBtn = e.didStash
       ? `<button id="popStashBtn" class="btn small">Pop stash (${esc(e.stashRef)})</button>` : '';
+    // A clean run deletes its own progress file, so there is nothing to offer.
+    // Only an interrupted run leaves one behind.
+    const delBtn = e.progressLeft
+      ? '<button id="delProgressBtn" class="btn small ghost">Delete progress file</button>' : '';
     $('summary').innerHTML = `
       <h3>Cherry-pick summary</h3>
       <div class="grid">
@@ -812,7 +837,7 @@
       <div class="row">
         <button id="newSessionBtn" class="btn small go">🔄 Start new session</button>
         ${stashBtn}
-        <button id="delProgressBtn" class="btn small ghost">Delete progress file</button>
+        ${delBtn}
       </div>`;
     $('summary').classList.remove('hidden');
     const pop = $('popStashBtn');
@@ -823,7 +848,8 @@
         lockControls(pop);                    // one-shot — stays disabled after success
       } catch (err) { alert('Pop failed: ' + err.message); }
     }));
-    $('delProgressBtn').addEventListener('click', (ev) => withBusy(ev.currentTarget, 'Deleting…', async () => {
+    const del = $('delProgressBtn');
+    if (del) del.addEventListener('click', (ev) => withBusy(ev.currentTarget, 'Deleting…', async () => {
       try {
         await T.request('deleteProgress', { file: e.progressFile });
         appendLog('info', 'Progress file deleted.');

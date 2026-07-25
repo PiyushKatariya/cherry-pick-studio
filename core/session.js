@@ -17,6 +17,8 @@ const fs = require('fs');
 const path = require('path');
 const g = require('./git');
 
+const PROGRESS_FILE = '.cherry-pick-progress';
+
 function stamp() {
   const d = new Date();
   const pad = (n) => String(n).padStart(2, '0');
@@ -57,7 +59,7 @@ class Session extends EventEmitter {
       this.runMode === 'dry-run'
         ? path.join(this.logDir, 'dry-run-log.txt')
         : path.join(this.logDir, 'cherry-pick-log.txt');
-    this.progressFile = path.join(this.logDir, '.cherry-pick-progress');
+    this.progressFile = path.join(this.logDir, PROGRESS_FILE);
 
     this._pending = null; // { token, resolve }
     this._tokenSeq = 0;
@@ -118,6 +120,16 @@ class Session extends EventEmitter {
       fs.mkdirSync(this.logDir, { recursive: true });
       fs.writeFileSync(this.progressFile, body + '\n');
     } catch (_) {}
+  }
+
+  // A finished run has nothing left to resume, so its progress file must go.
+  // Leaving it behind is what made the wizard offer to "continue" sessions that
+  // had already completed. Called from run() rather than _finish(), because
+  // _finish() is skipped on an abort and so cannot tell the two outcomes apart.
+  _clearProgress() {
+    try {
+      fs.unlinkSync(this.progressFile);
+    } catch (_) {} // never fail a successful run over cleanup
   }
 
   // ---- main run -----------------------------------------------------------
@@ -205,7 +217,10 @@ class Session extends EventEmitter {
         this._saveProgress(i);
       }
 
-      if (!this.aborted) await this._finish();
+      if (!this.aborted) {
+        await this._finish();
+        this._clearProgress();
+      }
       this._emitSummary();
       this.emit('done', { aborted: this.aborted, counters: this.counters });
     } catch (err) {
@@ -343,6 +358,9 @@ class Session extends EventEmitter {
       logDir: abs,
       logFile: this.logFile,
       progressFile: this.progressFile,
+      // Only an interrupted run leaves one behind; the UI hides its "delete
+      // progress file" button when there is nothing to delete.
+      progressLeft: fs.existsSync(this.progressFile),
       didStash: this.cfg.didStash,
       stashRef: this.cfg.stashRef,
     });
@@ -361,4 +379,61 @@ function parseProgressFile(file) {
   return out;
 }
 
-module.exports = { Session, parseProgressFile, stamp };
+// Compare repo paths the way the filesystem does: resolved, trailing separator
+// stripped, and case-insensitively on Windows.
+function repoKey(p) {
+  const resolved = path.resolve(String(p || ''));
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+}
+
+/**
+ * Find the one saved session worth resuming for `repoPath`, or null.
+ *
+ * A progress file only qualifies when it belongs to THIS repository and still
+ * has commits left. Without both checks the wizard offers to "resume" runs that
+ * already finished, or that belong to a completely different repo — every run
+ * writes into the same shared logs/ tree.
+ *
+ * Of the qualifying files the most recently written wins.
+ */
+function findLatestResume(logBase, repoPath) {
+  const want = repoKey(repoPath);
+  const candidates = [];
+  const stack = [logBase];
+  while (stack.length) {
+    const dir = stack.pop();
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch (_) {
+      continue; // unreadable or missing directory — nothing to resume from here
+    }
+    for (const ent of entries) {
+      const full = path.join(dir, ent.name);
+      if (ent.isDirectory()) stack.push(full);
+      else if (ent.name === PROGRESS_FILE) candidates.push(full);
+    }
+  }
+
+  let best = null;
+  for (const file of candidates) {
+    let data;
+    try {
+      data = parseProgressFile(file);
+    } catch (_) {
+      continue;
+    }
+    if (!data || !data.repo_path) continue;
+    if (repoKey(data.repo_path) !== want) continue;
+    const remaining = String(data.remaining_commits || '').split(/\s+/).filter(Boolean);
+    if (!remaining.length) continue; // the run finished — nothing to resume
+    let mtimeMs = 0;
+    try {
+      mtimeMs = fs.statSync(file).mtimeMs;
+    } catch (_) {}
+    if (!best || mtimeMs > best.mtimeMs) best = { file, data, mtimeMs };
+  }
+  return best ? { file: best.file, data: best.data, mtimeMs: best.mtimeMs } : null;
+}
+
+module.exports = { Session, parseProgressFile, findLatestResume, stamp, PROGRESS_FILE };

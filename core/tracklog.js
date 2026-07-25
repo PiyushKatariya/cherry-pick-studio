@@ -15,12 +15,13 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const paths = require('./paths');
 
-// Audit logs always live inside the tool's own logs/ folder (not the user's
-// custom per-run log folder). tracklog.js sits in core/, so root is one level up.
-const LOGS_ROOT = path.join(__dirname, '..', 'logs');
-const TRANS_DIR = path.join(LOGS_ROOT, 'tranclogs');
-const ERROR_DIR = path.join(LOGS_ROOT, 'errorlog');
+// Audit logs always live in the tool's own data folder (not the user's custom
+// per-run log folder). Resolved per call rather than once at load, because
+// core/paths.js picks a different root once the tool is packaged.
+const transDir = () => path.join(paths.logsDir(), 'tranclogs');
+const errorDir = () => path.join(paths.logsDir(), 'errorlog');
 
 const MAX_PARAMS_CHARS = 8192; // cap serialized params so one row can't run away
 
@@ -79,10 +80,10 @@ function createTracker(meta = {}) {
   };
 
   const base = `${fileStamp(started)}_${sessionId}`;
-  const transJsonl = path.join(TRANS_DIR, base + '.jsonl');
-  const transLog = path.join(TRANS_DIR, base + '.log');
-  const errJsonl = path.join(ERROR_DIR, base + '.jsonl');
-  const errLog = path.join(ERROR_DIR, base + '.log');
+  const transJsonl = path.join(transDir(), base + '.jsonl');
+  const transLog = path.join(transDir(), base + '.log');
+  const errJsonl = path.join(errorDir(), base + '.jsonl');
+  const errLog = path.join(errorDir(), base + '.log');
 
   let seq = 0;
 

@@ -11,7 +11,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const g = require('./git');
-const { Session } = require('./session');
+const { Session, findLatestResume } = require('./session');
 
 let pass = 0;
 let fail = 0;
@@ -29,6 +29,10 @@ async function main() {
   const remote = path.join(root, 'remote.git');
   const work = path.join(root, 'work');
   console.log('Workspace:', root);
+
+  // Keep the tool's own config/ and logs/ out of this run: the bridge remembers
+  // repos and writes audit logs, and a test must not touch the real ones.
+  process.env.CPS_DATA_DIR = root;
 
   // bare remote + clone
   fs.mkdirSync(remote);
@@ -90,11 +94,20 @@ async function main() {
     commits: infos, logDir, originalTotal: 3, preSkipped: 0,
   });
   const events = [];
+  let summary = null;
   session.on('progress', (e) => events.push(e.status));
+  session.on('summary', (e) => { summary = e; });
   await new Promise((resolve) => { session.on('done', resolve); session.run(); });
   ok(session.counters.succeeded === 3, `3 succeeded (got ${session.counters.succeeded})`);
   ok(session.counters.failed === 0, '0 failed');
   ok(fs.existsSync(path.join(logDir, 'cherry-pick-log.txt')), 'log file written');
+
+  // A finished run must leave nothing to resume — otherwise the next session
+  // opens with a bogus "previous session found" prompt.
+  ok(!fs.existsSync(path.join(logDir, '.cherry-pick-progress')),
+    'clean finish removes the progress file');
+  ok(summary && summary.progressLeft === false,
+    'summary reports no progress file left after a clean finish');
 
   // files now exist on client and were pushed
   ok(fs.existsSync(path.join(work, 'a.txt')) && fs.existsSync(path.join(work, 'c.txt')), 'cherry-picked files present');
@@ -104,6 +117,82 @@ async function main() {
   console.log('\n[Session — re-run detects already applied]');
   const aa2 = await g.alreadyApplied(work, 'client', infos);
   ok(aa2.applied.length === 3, `all 3 now already-applied (got ${aa2.applied.length})`);
+
+  console.log('\n[Session — aborted run keeps its progress file]');
+  // A fresh set of commits and a second client branch, so this is independent
+  // of the run above (whose commits are now already applied).
+  sh(work, ['checkout', 'main']);
+  const d1 = writeCommit('d.txt', 'delta\n', 'add delta');
+  const d2 = writeCommit('e.txt', 'echo\n', 'add echo');
+  const d3 = writeCommit('f.txt', 'foxtrot\n', 'add foxtrot');
+  sh(work, ['push', 'origin', 'main']);
+  sh(work, ['checkout', '-b', 'client2', 'HEAD~4']);
+  sh(work, ['push', 'origin', 'client2']);
+
+  const dInfos = [];
+  for (const c of [d1, d2, d3]) dInfos.push(await g.commitInfo(work, c));
+  const logDir2 = path.join(root, 'logs', 'run2');
+  const aborted = new Session({
+    repoPath: work, branch: 'client2', pushMode: 'batch', runMode: 'normal',
+    commits: dInfos, logDir: logDir2, originalTotal: 3, preSkipped: 0,
+  });
+  let summary2 = null;
+  aborted.on('summary', (e) => { summary2 = e; });
+  // Stop after the first commit: run() re-checks `aborted` at the top of each
+  // iteration, so commit 1 completes and saves progress, then the loop breaks.
+  aborted.on('progress', () => { aborted.aborted = true; });
+  await new Promise((resolve) => { aborted.on('done', resolve); aborted.run(); });
+
+  const prog2 = path.join(logDir2, '.cherry-pick-progress');
+  ok(fs.existsSync(prog2), 'an aborted run keeps its progress file');
+  ok(summary2 && summary2.progressLeft === true,
+    'summary reports a progress file left after an abort');
+  const resumable = findLatestResume(path.join(root, 'logs'), work);
+  ok(resumable && resumable.file === prog2,
+    'findLatestResume offers the aborted run, not the completed one');
+
+  console.log('\n[bridge — repo memory & resume]');
+  const { createBridge } = require('./bridge');
+  const store = require('./repostore');
+  const sent = [];
+  const bridge = createBridge((o) => sent.push(o), { transport: 'selftest' });
+  const call = async (msg) => {
+    sent.length = 0;
+    await bridge.handle(msg);
+    return sent.find((m) => m.type === 'result');
+  };
+
+  const pf = await call({ cmd: 'preflight', id: 'p1', repoPath: work });
+  ok(pf && pf.ok === true, 'preflight succeeds for a real repo');
+  ok(store.list().some((r) => r.path === path.resolve(work)),
+    'a repo that passes preflight is remembered');
+
+  const lr = await call({ cmd: 'listRepos', id: 'p2' });
+  ok(lr && lr.ok && Array.isArray(lr.data.repos) && lr.data.repos.length >= 1,
+    'listRepos returns the remembered repos');
+  ok(lr && lr.data.repos[0].exists === true, 'listRepos annotates whether the path still exists');
+
+  await call({ cmd: 'pinRepo', id: 'p3', repoPath: work, pinned: true });
+  ok(store.list()[0].pinned === true, 'pinRepo pins the repo');
+
+  const badPf = await call({ cmd: 'preflight', id: 'p4', repoPath: path.join(root, 'not-a-repo') });
+  ok(badPf && badPf.ok === false, 'preflight still fails for a non-repo');
+  ok(!store.list().some((r) => r.path.endsWith('not-a-repo')),
+    'a path that fails preflight is not remembered');
+
+  // The bug this release fixes: a finished run must not be offered for resume.
+  const fr = await call({ cmd: 'findResume', id: 'p5', logBase: path.join(root, 'logs'), repoPath: work });
+  ok(fr && fr.ok && fr.data.found === true, 'findResume finds the aborted run for this repo');
+  ok(fr && fr.data.file === prog2, 'findResume returns the interrupted session, not the completed one');
+  const frOther = await call({
+    cmd: 'findResume', id: 'p6', logBase: path.join(root, 'logs'), repoPath: path.join(root, 'elsewhere'),
+  });
+  ok(frOther && frOther.ok && frOther.data.found === false,
+    'findResume reports nothing for an unrelated repo');
+
+  await call({ cmd: 'forgetRepo', id: 'p7', repoPath: work });
+  ok(!store.list().some((r) => r.path === path.resolve(work)), 'forgetRepo drops the repo');
+  bridge.dispose();
 
   console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
   // best-effort cleanup

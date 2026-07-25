@@ -7,7 +7,8 @@
     "start": "node server/server.js",
     "web": "node server/server.js",
     "desktop": "electron .",
-    "test": "node core/selftest.js"
+    "test": "node core/selftest-units.js && node core/selftest.js",
+    "test:units": "node core/selftest-units.js"
   },
   "author": "Piyush Katariya <piyushkatariya15@gmail.com>",
   "license": "MIT",
