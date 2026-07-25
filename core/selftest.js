@@ -192,6 +192,10 @@ async function main() {
 
   await call({ cmd: 'forgetRepo', id: 'p7', repoPath: work });
   ok(!store.list().some((r) => r.path === path.resolve(work)), 'forgetRepo drops the repo');
+
+  const pr = await call({ cmd: 'probe', id: 'p8' });
+  ok(pr && pr.ok && typeof pr.data.git === 'string' && /\d+\.\d+/.test(pr.data.git),
+    'probe reports the git version so the UI can refuse to start without it');
   bridge.dispose();
 
   console.log(`\nRESULT: ${pass} passed, ${fail} failed`);

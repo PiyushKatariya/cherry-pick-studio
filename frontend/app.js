@@ -180,7 +180,29 @@
     // Offer previously used repos, but never pre-fill the path — Check must not
     // be able to fire against a repo the user hasn't looked at.
     loadRepos();
+    checkGit();
   });
+
+  // git is the one prerequisite the packaged build cannot bundle. Ask before the
+  // user invests any effort in the wizard, rather than failing at Step 1 with a
+  // spawn error that names no cause.
+  async function checkGit() {
+    let git = null;
+    try {
+      const r = await T.request('probe', {});
+      git = r.git;
+    } catch (_) {
+      return;   // probe itself failed — let the normal error paths report it
+    }
+    if (git) {
+      appendLog('info', `git ${git} detected.`);
+      return;
+    }
+    $('noGitBanner').classList.remove('hidden');
+    document.querySelector('.layout').classList.add('hidden');
+    setActivity('Git not found');
+    appendLog('error', 'git was not found on PATH — cannot continue.');
+  }
 
   // ---- Help button: open the user guide ----------------------------------
   $('helpBtn').addEventListener('click', () => {

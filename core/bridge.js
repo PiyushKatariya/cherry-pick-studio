@@ -91,6 +91,13 @@ function createBridge(send, meta = {}) {
           return reply({ isRepo, pending, worktree });
         }
 
+        // Startup capability check. git is a hard requirement the packaged build
+        // cannot supply, so the UI asks first and says what to install rather
+        // than letting the user hit a bare spawn error at Step 1.
+        case 'probe': {
+          return reply({ git: await g.gitVersion() });
+        }
+
         case 'listRepos': {
           return reply({ repos: repostore.list() });
         }

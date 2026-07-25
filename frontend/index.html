@@ -23,6 +23,18 @@
     </div>
   </header>
 
+  <!-- Shown only when git cannot be found. The engine shells out to git for
+       everything, so there is nothing useful to do without it. -->
+  <div id="noGitBanner" class="nogit hidden">
+    <h2>⛔ Git is not installed</h2>
+    <p>Cherry-Pick Studio drives the real <code>git</code> command, so it cannot run without it.
+       Everything else is bundled — git is the one thing you need to install.</p>
+    <p>Install <b>Git for Windows</b> from <span class="mono">https://git-scm.com/download/win</span>,
+       accepting the default options, then start Cherry-Pick Studio again.</p>
+    <p class="hint">Already installed? Make sure <span class="mono">git</span> works in a new
+       terminal — the installer must have added it to your PATH.</p>
+  </div>
+
   <main class="layout">
     <!-- ================= SETUP COLUMN ================= -->
     <section class="setup">

@@ -19,12 +19,17 @@ const TOOL_ROOT = path.join(__dirname, '..');
 //   1. CPS_DATA_DIR   — explicit override (also the hook the tests use)
 //   2. packaged app   — a writable per-user folder, since the bundle is not
 //   3. tool folder    — the dev checkout, i.e. today's behaviour
+// The `data` subfolder is not decoration: Electron already owns
+// %APPDATA%\cherry-pick-studio as its userData directory and fills it with
+// Chromium's profile (Cache, GPUCache, Local State, Preferences). Writing our
+// logs and config alongside those would mix real user data with a browser cache,
+// where anything that clears the cache could take the audit trail with it.
 function resolveDataRoot({ dataDirEnv, packaged, appData, home, toolRoot }) {
   if (dataDirEnv) return dataDirEnv;
   if (packaged) {
     return appData
-      ? path.join(appData, 'cherry-pick-studio')
-      : path.join(home, '.cherry-pick-studio');
+      ? path.join(appData, 'cherry-pick-studio', 'data')
+      : path.join(home, '.cherry-pick-studio', 'data');
   }
   return toolRoot;
 }

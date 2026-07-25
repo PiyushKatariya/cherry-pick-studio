@@ -160,6 +160,17 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); }
 .muted { color: var(--muted); }
 .hidden { display: none !important; }
 
+/* Missing-git stop screen. Replaces the wizard entirely — there is nothing the
+   user can usefully do until git is installed. */
+.nogit {
+  max-width: 680px; margin: 48px auto; padding: 26px 30px;
+  background: var(--panel); border: 1px solid var(--red); border-radius: 12px;
+}
+.nogit h2 { margin: 0 0 14px; font-size: 20px; color: var(--red); }
+.nogit p { margin: 0 0 12px; font-size: 14px; line-height: 1.55; }
+.nogit .mono { font-family: "Consolas", monospace; color: var(--accent); }
+.nogit code { font-family: "Consolas", monospace; }
+
 /* tables */
 #orderTableWrap { overflow-x: auto; }   /* wide plan table scrolls instead of overflowing the page */
 table.ctable { width: 100%; min-width: 480px; border-collapse: collapse; margin-top: 10px; font-size: 12.5px; }

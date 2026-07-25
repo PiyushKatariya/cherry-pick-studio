@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Cherry-Pick Studio — web mode</title>
+  <!--
+    The stop mechanism for --web mode. A GUI Electron process with no window and
+    no console cannot be stopped: nothing to Ctrl-C, nothing to close. This window
+    is that off switch, and it also shows the URL so the tab can be reopened.
+
+    Styles are inline rather than shared with the wizard's styles.css — this is a
+    standalone panel and must not break if the app's stylesheet is restructured.
+  -->
+  <style>
+    :root {
+      --bg: #121821; --panel: #1a212b; --text: #e6edf3; --muted: #8b98a9;
+      --accent: #e0556b; --green: #3fb950; --red: #f1626b; --line: #2b3542;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 20px 22px; background: var(--bg); color: var(--text);
+      font-family: "Segoe UI", system-ui, sans-serif; font-size: 14px;
+      user-select: none;
+    }
+    h1 { margin: 0 0 4px; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+    .sub { margin: 0 0 16px; color: var(--muted); font-size: 12px; }
+    .box {
+      background: var(--panel); border: 1px solid var(--line); border-radius: 9px;
+      padding: 13px 15px; margin-bottom: 14px;
+    }
+    .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+    .url {
+      font-family: "Consolas", monospace; font-size: 15px; color: var(--green);
+      margin-top: 5px; user-select: text; cursor: text; word-break: break-all;
+    }
+    .url.pending { color: var(--muted); }
+    .url.failed { color: var(--red); font-size: 13px; }
+    .row { display: flex; gap: 9px; }
+    button {
+      flex: 1; padding: 9px 12px; border: none; border-radius: 7px;
+      font-size: 13px; font-weight: 600; cursor: pointer; color: #fff;
+      background: var(--accent); font-family: inherit;
+    }
+    button:hover:not(:disabled) { filter: brightness(1.1); }
+    button.ghost { background: transparent; border: 1px solid var(--line); color: var(--text); }
+    button.ghost:hover { border-color: var(--accent); }
+    button:disabled { opacity: .4; cursor: not-allowed; }
+    .foot { margin: 14px 0 0; color: var(--muted); font-size: 11.5px; text-align: center; }
+  </style>
+</head>
+<body>
+  <h1><span>🍒</span> Cherry-Pick Studio — web mode</h1>
+  <p class="sub">The browser UI is served from this window.</p>
+
+  <div class="box">
+    <div class="label">Running at</div>
+    <div class="url pending" id="url">starting…</div>
+  </div>
+
+  <div class="row">
+    <button id="open" disabled>Open in browser</button>
+    <button id="stop" class="ghost">Stop server</button>
+  </div>
+
+  <p class="foot">Closing this window stops the server.</p>
+
+  <script>
+    (function () {
+      'use strict';
+      const url = document.getElementById('url');
+      const open = document.getElementById('open');
+      const stop = document.getElementById('stop');
+
+      window.cpsWeb.onReady((d) => {
+        url.textContent = 'http://127.0.0.1:' + d.port;
+        url.className = 'url';
+        open.disabled = false;
+      });
+
+      window.cpsWeb.onError((d) => {
+        url.textContent = d.message || 'Could not start the server.';
+        url.className = 'url failed';
+        open.disabled = true;
+      });
+
+      open.addEventListener('click', () => window.cpsWeb.openBrowser());
+      stop.addEventListener('click', () => window.cpsWeb.stop());
+    })();
+  </script>
+</body>
+</html>

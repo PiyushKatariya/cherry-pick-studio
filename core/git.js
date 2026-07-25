@@ -52,6 +52,26 @@ function git(repoPath, args, opts = {}) {
 // Pre-flight
 // ---------------------------------------------------------------------------
 
+/**
+ * Is git available at all? Resolves its version string, or null when git cannot
+ * be run. Never throws, and needs no repository.
+ *
+ * Every operation here shells out to git, so without it the tool fails at the
+ * first command with a bare ENOENT. The packaged build reaches people who never
+ * set up a dev environment, so the UI probes this at startup and tells them what
+ * to install rather than showing them a spawn error.
+ */
+function gitVersion() {
+  return new Promise((resolve) => {
+    execFile('git', ['--version'], { windowsHide: true, timeout: 5000 }, (err, stdout) => {
+      if (err) return resolve(null);
+      const text = String(stdout || '').trim();
+      const m = /git version (\S+)/i.exec(text);
+      resolve(m ? m[1] : text || null);
+    });
+  });
+}
+
 async function isGitRepo(repoPath) {
   const r = await git(repoPath, ['rev-parse', '--git-dir']);
   return r.code === 0;
@@ -489,6 +509,7 @@ async function stagedDiff(repoPath) {
 module.exports = {
   git,
   mapLimit,
+  gitVersion,
   isGitRepo,
   pendingOps,
   abortPending,

@@ -161,11 +161,14 @@ Verified while writing the previous spec:
 
 ## 7. Data location
 
-Packaged runs write to `%APPDATA%\cherry-pick-studio\{logs,config}`, per
+Packaged runs write to `%APPDATA%\cherry-pick-studio\data\{logs,config}`, per
 `core/paths.js`. Deliberately **not** next to the exe: the zip may be unpacked
 somewhere read-only, and a per-user location survives replacing the folder with a
 newer build. `CPS_DATA_DIR` still overrides for anyone who wants the data beside
 the exe.
+
+The `data` subfolder is required, not cosmetic — Electron already owns
+`%APPDATA%\cherry-pick-studio` for Chromium's profile. See the findings in §9.
 
 ## 8. Error handling
 
@@ -193,19 +196,42 @@ not new core logic. Additions:
 5. `gitVersion()` resolves `null` rather than throwing when `git` is not on PATH
    (a stripped-PATH child process).
 
-**Manual, against the built exe — the results go in the PR description:**
-6. `Run Desktop.bat` opens the wizard; a cherry-pick against a scratch repo
-   completes.
-7. `Run Web (browser).bat` shows the status window and the browser reaches the
-   wizard; closing the window stops the server.
-8. Help opens the guide in both modes (proves the `asarUnpack` fix).
-9. `logs/` and `config/repos.json` appear under `%APPDATA%\cherry-pick-studio\`,
-   and the saved-repo picker persists across a restart.
-10. Launching the exe a second time focuses the first instance.
-11. **The no-Node claim:** launch the exe from a shell whose `PATH` has every Node
-    directory stripped, and confirm both modes still work. This machine has Node
-    installed, so this is the strongest available evidence short of a clean VM —
-    and it is stated as such, not as "tested on a machine without Node".
+**Manual, against the built exe — all run with `PATH` stripped of every Node
+directory, so each result below also re-proves the no-Node claim:**
+
+| # | Check | Result |
+|---|-------|--------|
+| 6 | `Run Web (browser).bat` binds a free loopback port and serves the wizard | ✅ `127.0.0.1:50421`; browser connected over WS, badge "web" |
+| 7 | Full cherry-pick of 2 commits through the packaged app | ✅ 2 succeeded, 0 failed; both landed on `origin/client` |
+| 8 | Help guide reachable (proves the `asarUnpack` fix) | ✅ `/docs/Cherry-Pick-Studio-Guide.html` → 200 |
+| 9 | Data lands in the namespaced folder | ✅ `%APPDATA%\cherry-pick-studio\data\logs\...` |
+| 10 | Second launch does not start a second instance | ✅ 1 windowed process before and after |
+| 11 | `Run Desktop.bat` opens the wizard and uses IPC, not a port | ✅ window opened, zero listening ports |
+| 12 | The renderer really loads from inside `app.asar` | ✅ audit log shows a `desktop`-transport session issuing `listRepos` + `probe`, which only happens once `app.js` runs |
+| 13 | Missing git is reported, not crashed into | ✅ stop screen shown when `PATH` lacked git too |
+| 14 | A finished run leaves nothing to resume (the bug behind the previous spec) | ✅ no progress file written; re-checking the repo raised no modal; summary showed no "Delete progress file" button |
+
+`PATH` was reduced to Git's `usr\bin` + `mingw64\bin` + `C:\Windows\system32`, with
+`Get-Command node` confirming Node was unreachable in the launching shell. This
+machine has Node installed, so this is the strongest evidence available short of a
+clean VM — recorded as such, **not** as "tested on a machine without Node".
+
+### Findings from building it
+
+Two defects that only a real build could surface, both fixed:
+
+1. **`%APPDATA%\cherry-pick-studio` is already Electron's `userData` directory** —
+   Chromium fills it with `Cache`, `GPUCache`, `Local State` and `Preferences`,
+   because `package.json` `name` is `cherry-pick-studio`. Writing `logs/` and
+   `config/` alongside those would mix the audit trail into a browser cache, where
+   a cache cleanup could delete it. `resolveDataRoot` now returns a `data`
+   subfolder (§7), covered by a regression test asserting the bare path is *not*
+   used.
+2. **A port clash killed the process instead of rejecting.** `ws` mirrors the http
+   server's `'error'` onto itself, so `EADDRINUSE` arrived on two emitters and the
+   unhandled one crashed the app — meaning the `--web` status window would have
+   vanished rather than showing the problem. `start()` now handles both emitters
+   and rejects once.
 
 ## 10. Out of scope
 

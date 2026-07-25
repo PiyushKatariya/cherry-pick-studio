@@ -56,14 +56,23 @@ function testPaths() {
   // The packaged branch can't be exercised without a real asar bundle, so it is
   // tested through the pure resolver instead.
   const R = paths.resolveDataRoot;
+  const roaming = 'C:\\Users\\x\\AppData\\Roaming';
   ok(
-    R({ packaged: true, appData: 'C:\\Users\\x\\AppData\\Roaming', home: 'C:\\Users\\x', toolRoot: 'T' }) ===
-      path.join('C:\\Users\\x\\AppData\\Roaming', 'cherry-pick-studio'),
+    R({ packaged: true, appData: roaming, home: 'C:\\Users\\x', toolRoot: 'T' }) ===
+      path.join(roaming, 'cherry-pick-studio', 'data'),
     'packaged run writes under APPDATA, not the read-only bundle'
+  );
+  // %APPDATA%\cherry-pick-studio IS Electron's own userData folder (Chromium
+  // keeps Cache, GPUCache, Local State and Preferences there). Our logs and
+  // config must not be strewn among those, or a cache cleanup takes them out.
+  ok(
+    R({ packaged: true, appData: roaming, home: 'C:\\Users\\x', toolRoot: 'T' }) !==
+      path.join(roaming, 'cherry-pick-studio'),
+    "packaged data root is namespaced away from Electron's Chromium profile"
   );
   ok(
     R({ packaged: true, appData: '', home: '/home/x', toolRoot: 'T' }) ===
-      path.join('/home/x', '.cherry-pick-studio'),
+      path.join('/home/x', '.cherry-pick-studio', 'data'),
     'packaged run falls back to the home dir when APPDATA is absent'
   );
   ok(
@@ -302,12 +311,100 @@ function testFindLatestResume() {
   });
 }
 
-function main() {
+// GET a URL, resolving { status, body } or rejecting.
+function httpGet(url) {
+  return new Promise((resolve, reject) => {
+    require('http')
+      .get(url, (res) => {
+        let body = '';
+        res.on('data', (d) => { body += d; });
+        res.on('end', () => resolve({ status: res.statusCode, body }));
+      })
+      .on('error', reject);
+  });
+}
+
+async function testServer() {
+  console.log('\n[server]');
+  const srv = require('../server/server');
+
+  // 1 — port 0 lets the OS pick, and the caller is told which one.
+  const { server, port } = await srv.start({ port: 0 });
+  ok(typeof port === 'number' && port > 0, `start() reports its port (got ${port})`);
+
+  const health = await httpGet(`http://127.0.0.1:${port}/health`);
+  ok(health.status === 200 && /"ok":true/.test(health.body), 'the started server serves /health');
+  const index = await httpGet(`http://127.0.0.1:${port}/`);
+  ok(index.status === 200 && /Cherry-Pick Studio/.test(index.body), 'it serves the frontend');
+
+  // 2 — loopback only: the bridge runs git against any local path.
+  ok(server.address().address === '127.0.0.1', 'it binds 127.0.0.1, not every interface');
+
+  await new Promise((r) => server.close(r));
+  let refusedAfterClose = false;
+  try { await httpGet(`http://127.0.0.1:${port}/health`); } catch (_) { refusedAfterClose = true; }
+  ok(refusedAfterClose, 'close() releases the port');
+
+  // A busy port must REJECT, not crash. ws mirrors the http server's 'error'
+  // onto itself, so an unhandled one there kills the process — which in the
+  // packaged app would mean the --web window dying instead of showing the error.
+  const held = await srv.start({ port: 0 });
+  let rejectedCode = null;
+  try {
+    await srv.start({ port: held.port });
+  } catch (err) {
+    rejectedCode = err.code;
+  }
+  ok(rejectedCode === 'EADDRINUSE', `a busy port rejects with EADDRINUSE (got ${rejectedCode})`);
+  await new Promise((r) => held.server.close(r));
+
+  // 3 — requiring the module must not start anything. If it did, the child's
+  // event loop would stay alive on the listener and the process would hang.
+  const entry = path.join(__dirname, '..', 'server', 'server.js');
+  const exited = await new Promise((resolve) => {
+    require('child_process').execFile(
+      process.execPath,
+      ['-e', `require(${JSON.stringify(entry)})`],
+      { timeout: 4000 },
+      (err) => resolve(!(err && err.killed))
+    );
+  });
+  ok(exited, 'requiring server.js starts no listener (the process exits)');
+}
+
+async function testGitProbe() {
+  console.log('\n[git probe]');
+  const g = require('./git');
+
+  const v = await g.gitVersion();
+  ok(typeof v === 'string' && /\d+\.\d+/.test(v), `gitVersion returns a version (got ${v})`);
+
+  // The whole point of the probe: on a machine without git it must report
+  // "absent" rather than throwing, so the UI can say what to install.
+  // Simulated with a child process whose PATH cannot resolve git.
+  const script =
+    `require(${JSON.stringify(path.join(__dirname, 'git.js'))})` +
+    `.gitVersion().then(v => console.log('RESULT:' + JSON.stringify(v)),` +
+    ` e => console.log('THREW:' + e.message))`;
+  const out = await new Promise((resolve) => {
+    require('child_process').execFile(
+      process.execPath,
+      ['-e', script],
+      { timeout: 10000, env: { ...process.env, PATH: '', Path: '' } },
+      (err, stdout, stderr) => resolve(String(stdout || '') + String(stderr || ''))
+    );
+  });
+  ok(/RESULT:null/.test(out), `gitVersion resolves null when git is absent (got ${out.trim()})`);
+}
+
+async function main() {
   testPaths();
   testRepoStore();
   testFindLatestResume();
+  await testServer();
+  await testGitProbe();
   console.log(`\nUNIT RESULT: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 }
 
-main();
+main().catch((e) => { console.error(e); process.exit(1); });
