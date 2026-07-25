@@ -20,6 +20,18 @@ const { createBridge } = require('../core/bridge');
 
 const WEB_MODE = process.argv.includes('--web');
 
+// A packaged window takes its icon from the exe, where electron-builder embedded
+// build/icon.ico. Running from source there is no exe, so point at the PNG —
+// guarded, because build/ is not part of the bundle.
+const ICON = (() => {
+  const p = path.join(__dirname, '..', 'build', 'icon.png');
+  try {
+    return require('fs').existsSync(p) ? p : undefined;
+  } catch (_) {
+    return undefined;
+  }
+})();
+
 let win = null;
 let bridge = null;
 let webServer = null;
@@ -32,6 +44,7 @@ function createWindow() {
     minWidth: 820,
     minHeight: 600,
     title: 'Cherry-Pick Studio',
+    icon: ICON,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -75,6 +88,7 @@ async function createWebStatusWindow() {
     fullscreenable: false,
     alwaysOnTop: true,
     title: 'Cherry-Pick Studio — web mode',
+    icon: ICON,
     webPreferences: {
       preload: path.join(__dirname, 'web-preload.js'),
       contextIsolation: true,
