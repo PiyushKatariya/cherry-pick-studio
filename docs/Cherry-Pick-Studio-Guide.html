@@ -103,8 +103,9 @@
     <h1>Cherry-Pick Studio</h1>
     <p>A browser &amp; desktop UI for automating git cherry-picks into a client branch — the graphical successor to the <code>cherry-pick-tool.sh</code> CLI.</p>
     <div class="pills">
-      <span class="pill">Node.js + Express</span>
+      <span class="pill">Runs without Node.js</span>
       <span class="pill">Electron desktop</span>
+      <span class="pill">Browser UI</span>
       <span class="pill">Shared git engine</span>
       <span class="pill">Auto free-port</span>
       <span class="pill">Windows launchers</span>
@@ -116,11 +117,14 @@
     <ol>
       <li><a href="#what">What it is</a></li>
       <li><a href="#prereq">Prerequisites</a></li>
-      <li><a href="#run">How to run</a></li>
+      <li><a href="#packaged">Packaged app — no Node.js needed</a></li>
+      <li><a href="#run">How to run (from source)</a></li>
       <li><a href="#launchers">The 3 launchers explained</a></li>
       <li><a href="#combined">Combined launcher logic</a></li>
       <li><a href="#arch">Architecture &amp; flow</a></li>
       <li><a href="#workflow">Using the UI (5 steps)</a></li>
+      <li><a href="#savedrepos">Saved repositories</a></li>
+      <li><a href="#resume">Resuming an interrupted run</a></li>
       <li><a href="#modes">Run modes &amp; push strategies</a></li>
       <li><a href="#features">Feature list</a></li>
       <li><a href="#logs">Logs &amp; where they go</a></li>
@@ -154,16 +158,54 @@
     <h2><span class="dot"></span>Prerequisites</h2>
     <table>
       <tr><th>Tool</th><th>Needed for</th><th>Notes</th></tr>
-      <tr><td><b>Git</b></td><td>All git operations</td><td>Must be on your <code>PATH</code> (<code>git --version</code> works).</td></tr>
-      <tr><td><b>Node.js</b> (v18+)</td><td>Web server &amp; Electron</td><td>Install from <a href="https://nodejs.org/">nodejs.org</a>. The launchers auto-detect it.</td></tr>
-      <tr><td><b>npm dependencies</b></td><td>Express, ws, Electron</td><td>Installed automatically on first launch (<code>npm install</code>).</td></tr>
+      <tr><td><b>Git</b></td><td><b>Everything — always required</b></td><td>Must be on your <code>PATH</code> (<code>git --version</code> works). This tool drives the real <code>git</code> command, so it cannot work without it. If it is missing, the app tells you at startup instead of failing later.</td></tr>
+      <tr><td><b>Node.js</b> (v18+)</td><td>Only when running <b>from source</b></td><td>Install from <a href="https://nodejs.org/">nodejs.org</a>. The launchers auto-detect it. <b>The packaged app does not need it</b> — see <a href="#packaged">Packaged app</a>.</td></tr>
+      <tr><td><b>npm dependencies</b></td><td>Express, ws, Electron</td><td>From source only; installed automatically on first launch (<code>npm install</code>). Already inside the packaged app.</td></tr>
+      <tr><td><b>Python</b></td><td>Nothing</td><td>Not used. <code>web-flask/</code> is a scaffold for a possible future port.</td></tr>
     </table>
     <div class="callout"><b>You don't need to run anything manually.</b> The <code>.bat</code> launchers check Node, install dependencies if missing, then start the app.</div>
+    <div class="callout ok"><b>Only git is a real prerequisite.</b> If you use the packaged app, git is the <em>one</em> thing you have to install yourself.</div>
+  </section>
+
+  <!-- ============================================================ -->
+  <section id="packaged">
+    <h2><span class="dot"></span>Packaged app — no Node.js needed</h2>
+    <p class="lead">For handing the tool to someone who has not set up a development environment. One zip, nothing installed, and <b>both</b> modes work without Node.js.</p>
+
+    <div class="callout ok"><b>Why this works:</b> Electron's main process <em>is</em> Node. So the packaged app can open the desktop window <em>and</em> start the same Express web server internally — one bundle, both modes, no system Node.js.</div>
+
+    <h3>Building it</h3>
+    <pre><code>npm run dist</code></pre>
+    <p>Produces <code>dist/Cherry-Pick Studio-1.0.0-win-x64.zip</code> (about 100&nbsp;MB).</p>
+
+    <h3>What's inside, and how to run it</h3>
+    <table>
+      <tr><th>File</th><th>What it does</th></tr>
+      <tr><td><code>Run Desktop.bat</code></td><td>Opens the app in its own window.</td></tr>
+      <tr><td><code>Run Web (browser).bat</code></td><td>Starts the local server on a free port and opens your default browser.</td></tr>
+      <tr><td><code>Cherry-Pick Studio.exe</code></td><td>Double-click it directly for the desktop window. Add <code>--web</code> for browser mode.</td></tr>
+      <tr><td><code>README.txt</code></td><td>The same essentials, for whoever you give the zip to.</td></tr>
+    </table>
+    <p>Unzip anywhere and double-click a <code>.bat</code>. <b>Keep the <code>.bat</code> files next to the <code>.exe</code></b> — they look for it in their own folder.</p>
+
+    <h3>Web mode: the status window</h3>
+    <p>Web mode opens a small always-on-top window showing the address it is serving on, with <b>Open in browser</b> and <b>Stop server</b> buttons.</p>
+    <div class="callout"><b>Closing that window stops the server.</b> That is the off switch — without it, a windowless app would have no console to close and no way to stop.</div>
+
+    <h3>Two things to expect</h3>
+    <table>
+      <tr><th>What you'll see</th><th>Why, and what to do</th></tr>
+      <tr><td><b>"Windows protected your PC"</b> on first run</td><td>The app is not code-signed. Click <b>More info</b> → <b>Run anyway</b>. Some corporate antivirus may also quarantine it; ask IT to allow the folder.</td></tr>
+      <tr><td><b>"Git is not installed"</b> stop screen</td><td>Exactly what it says — install <a href="https://git-scm.com/download/win">Git for Windows</a> and restart the app. Everything else is bundled.</td></tr>
+    </table>
+
+    <h3>Desktop and browser are separate sessions</h3>
+    <div class="callout warn">The desktop window and a browser tab each get their own engine — they are <b>not</b> two views of the same session. Use one at a time for a given repository, or you could run two cherry-picks against it at once. Choosing a mode at launch (rather than switching mid-flight) is why there are two <code>.bat</code> files.</div>
   </section>
 
   <!-- ============================================================ -->
   <section id="run">
-    <h2><span class="dot"></span>How to run</h2>
+    <h2><span class="dot"></span>How to run (from source)</h2>
 
     <div class="callout ok"><b>You only need to run ONE of them.</b> The web app and the desktop app are two complete, independent versions of the <em>same</em> tool — not a pair that must run together. Each has its own built-in backend and the same git engine inside it. Pick whichever you prefer:
       <ul style="margin:8px 0 0">
@@ -290,13 +332,47 @@ run-desktop.bat              ──►  powershell ... studio.ps1 -Mode desktop<
   <section id="workflow">
     <h2><span class="dot"></span>Using the UI — 5 steps</h2>
     <ol class="flow">
-      <li><b>Repository</b> — type/paste (or Browse, in desktop) the path to your git repo and click <em>Check</em>. Abort any pending op or auto-stash uncommitted changes here.</li>
+      <li><b>Repository</b> — type/paste the path, pick one from the <a href="#savedrepos">saved list</a> (click <span class="kbtn">▾</span>), or Browse in desktop mode, then click <em>Check</em>. Abort any pending op or auto-stash uncommitted changes here.</li>
       <li><b>Client branch</b> — enter the branch (e.g. <code>client/acme-release-2026Q1</code>), <em>Check</em> it against origin, optionally <em>Check out fresh from remote</em>.</li>
       <li><b>Commits</b> — paste commit IDs (comma or space separated) and <em>Validate</em>. Bad/duplicate/missing IDs are flagged.</li>
       <li><b>Options</b> — choose push strategy, run mode, and an optional custom log folder.</li>
       <li><b>Review &amp; order</b> — <em>Analyze &amp; build plan</em> sorts commits and marks already-applied ones; reorder if needed, then <span class="kbtn">▶ Start cherry-pick</span>.</li>
     </ol>
     <p>The right column shows a live <b>progress bar</b>, a per-commit status list, a final <b>summary</b>, and the running <b>log</b>. Decisions (merge parent, conflict, push retry, review commit) appear as modal dialogs.</p>
+  </section>
+
+  <!-- ============================================================ -->
+  <section id="savedrepos">
+    <h2><span class="dot"></span>Saved repositories</h2>
+    <p class="lead">You should never have to retype a repository path. Every repo that passes <em>Check</em> is remembered, along with the branch you last checked out for it.</p>
+
+    <p>Click <span class="kbtn">▾</span> in the Repository field to open the list. Choosing a row fills the path, runs <em>Check</em> for you, and pre-fills that repo's branch in Step&nbsp;2 — you still press Step&nbsp;2's own <em>Check</em>, nothing is validated on your behalf.</p>
+
+    <table>
+      <tr><th>Control</th><th>What it does</th></tr>
+      <tr><td><span class="kbtn">📌</span></td><td>Pins the repo to the top of the list. Pinned repos are never dropped.</td></tr>
+      <tr><td><span class="kbtn">✕</span></td><td>Forgets that repo. Nothing is ever removed automatically.</td></tr>
+      <tr><td><code>(missing)</code></td><td>The folder no longer exists. It is greyed out but kept, so you can see what happened rather than wondering where it went — remove it with <span class="kbtn">✕</span> when you're ready.</td></tr>
+    </table>
+
+    <p>Unpinned entries are capped at the <b>15 most recently used</b>. The path is
+    never filled in for you on startup, so <em>Check</em> can never run against a repo
+    you did not choose.</p>
+
+    <p class="muted">Stored as plain JSON in <code>config/repos.json</code> (see <a href="#logs">Logs &amp; where they go</a>) — editable by hand if you ever want to.</p>
+  </section>
+
+  <!-- ============================================================ -->
+  <section id="resume">
+    <h2><span class="dot"></span>Resuming an interrupted run</h2>
+    <p>If a run is <b>aborted</b> part-way, it leaves a <code>.cherry-pick-progress</code> file behind. The next time you <em>Check</em> that repository you are asked what to do:</p>
+    <table>
+      <tr><th>Choice</th><th>Effect</th></tr>
+      <tr><td><b>Resume</b></td><td>Loads that session's branch and its <em>remaining</em> commits into the wizard, ready for you to validate and start.</td></tr>
+      <tr><td><b>Start fresh</b></td><td>Discards the saved progress file and begins a new run.</td></tr>
+    </table>
+    <p>The prompt names the repository and when the session was saved, so you can tell which run it is talking about.</p>
+    <div class="callout ok"><b>A run that finishes never asks to be resumed.</b> The engine deletes its own progress file on a clean finish, and the prompt only appears for a session that (a) belongs to the repository you just checked and (b) still has commits left. Earlier versions asked to "continue" runs that had already completed.</div>
   </section>
 
   <!-- ============================================================ -->
@@ -338,9 +414,13 @@ run-desktop.bat              ──►  powershell ... studio.ps1 -Mode desktop<
       <tr><td>Merge-commit handling</td><td>Detects merges and asks which parent (mainline <code>-m 1/2</code>) to follow — or skip.</td></tr>
       <tr><td>Conflict resolver</td><td>Lists conflicted files; re-checks for leftover <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code> markers; resolve / skip / abort.</td></tr>
       <tr><td>Push retry</td><td>retry / force-with-lease / skip / abort on rejected pushes.</td></tr>
-      <tr><td>Crash resume</td><td>Writes <code>.cherry-pick-progress</code> after each commit; offers to resume an interrupted session.</td></tr>
-      <tr><td>Logging</td><td>Timestamped log per run inside the tool's own <code>logs/</code> folder (see <a href="#logs">Logs &amp; where they go</a>), or a custom folder.</td></tr>
-      <tr><td>Self-test</td><td><code>npm test</code> spins up a real repo + bare remote and exercises the engine end-to-end.</td></tr>
+      <tr><td>Crash resume</td><td>Writes <code>.cherry-pick-progress</code> after each commit and offers to resume an <b>interrupted</b> session — matched to the repository, and only while commits remain. A finished run cleans up after itself. See <a href="#resume">Resuming an interrupted run</a>.</td></tr>
+      <tr><td>Saved repositories</td><td>Remembers every repo that passes <em>Check</em> plus its last branch; pin, forget, and missing-folder marking. See <a href="#savedrepos">Saved repositories</a>.</td></tr>
+      <tr><td>Startup git check</td><td>Probes for <code>git</code> before you invest any effort and explains what to install if it is absent.</td></tr>
+      <tr><td>Runs without Node.js</td><td><code>npm run dist</code> builds a zip whose <code>.exe</code> serves <b>both</b> the desktop and browser UIs with no Node.js installed. See <a href="#packaged">Packaged app</a>.</td></tr>
+      <tr><td>Logging</td><td>Timestamped log per run, plus an audit log of every command and an error log (see <a href="#logs">Logs &amp; where they go</a>), or a custom folder.</td></tr>
+      <tr><td>Loopback only</td><td>The web server binds <code>127.0.0.1</code>, so the UI — which can run git against any local path — is never exposed to your network.</td></tr>
+      <tr><td>Self-test</td><td><code>npm test</code> runs a fast git-free unit suite, then spins up a real repo + bare remote and exercises the engine end-to-end.</td></tr>
     </table>
   </section>
 
@@ -373,6 +453,23 @@ run-desktop.bat              ──►  powershell ... studio.ps1 -Mode desktop<
       <tr><td>Log file</td><td><code>cherry-pick-log.txt</code> (or <code>dry-run-log.txt</code> in dry-run mode). Header records the <b>repository path</b>; each line carries the exact time.</td></tr>
       <tr><td>Resume file</td><td><code>.cherry-pick-progress</code> — records the repo path + branch and lets an interrupted run be resumed.</td></tr>
       <tr><td>Custom location</td><td>Set a path in <b>Step 4 → Log folder</b> to override the default base.</td></tr>
+      <tr><td>Audit &amp; error logs</td><td><code>logs/tranclogs/</code> records every command and its inputs; <code>logs/errorlog/</code> records failures. Both in <code>.jsonl</code> (queryable) and <code>.log</code> (readable).</td></tr>
+      <tr><td>Saved repositories</td><td><code>config/repos.json</code> — the list behind the <span class="kbtn">▾</span> picker. Plain JSON, safe to edit.</td></tr>
+    </table>
+
+    <h3>Where this lands in the packaged app</h3>
+    <p>A packaged app cannot write next to itself — the bundle is read-only — so it uses your user profile instead:</p>
+    <pre>%APPDATA%\cherry-pick-studio\<span class="k">data</span>\
+├── logs\                        <span class="c"># same date/run structure as above</span>
+│   ├── tranclogs\
+│   └── errorlog\
+└── config\repos.json            <span class="c"># your saved repositories</span></pre>
+    <p>Paste <code>%APPDATA%\cherry-pick-studio\data</code> into Explorer's address bar to open it.</p>
+    <table>
+      <tr><th>Point</th><th>Detail</th></tr>
+      <tr><td>Why the profile?</td><td>It also means <b>replacing the app folder with a newer build keeps your logs and saved repos</b>.</td></tr>
+      <tr><td>Why the <code>data</code> subfolder?</td><td>Electron already owns <code>%APPDATA%\cherry-pick-studio</code> for its own browser cache. Keeping our files in <code>data\</code> means clearing that cache can't take your audit trail with it. Leave the sibling folders alone.</td></tr>
+      <tr><td>Override</td><td>Set the <code>CPS_DATA_DIR</code> environment variable to put everything wherever you like — including next to the <code>.exe</code>.</td></tr>
     </table>
     <div class="callout ok"><b>Each run is isolated.</b> Runs are grouped under the day's parent folder, and every run gets its own timestamped subfolder — so logs never mix. The log header also records which repository the run targeted.</div>
     <div class="callout ok"><b>Why the tool folder?</b> Your repositories stay clean — no <code>cherry-pick-logs</code> directory is ever written into them. All logs from all repos collect in one predictable place.</div>
@@ -390,27 +487,58 @@ run-desktop.bat              ──►  powershell ... studio.ps1 -Mode desktop<
 ├── docs/
 │   └── Cherry-Pick-Studio-Guide.html  <span class="c"># this file</span>
 ├── core/
-│   ├── git.js          <span class="c"># stateless git operations</span>
-│   ├── session.js      <span class="c"># pausable run state machine</span>
-│   ├── bridge.js       <span class="c"># command router (shared)</span>
-│   └── selftest.js     <span class="c"># npm test</span>
+│   ├── git.js            <span class="c"># stateless git operations (+ the startup git probe)</span>
+│   ├── session.js        <span class="c"># pausable run state machine + resume detection</span>
+│   ├── bridge.js         <span class="c"># command router (shared)</span>
+│   ├── paths.js          <span class="c"># where data is written (dev folder vs packaged)</span>
+│   ├── repostore.js      <span class="c"># the saved-repository list</span>
+│   ├── tracklog.js       <span class="c"># audit + error logging</span>
+│   ├── selftest-units.js <span class="c"># fast git-free tests (npm run test:units)</span>
+│   └── selftest.js       <span class="c"># real-repo integration test (npm test runs both)</span>
 ├── server/
-│   └── server.js       <span class="c"># Express + WebSocket (web backend)</span>
+│   └── server.js         <span class="c"># Express + WebSocket, loopback only</span>
 ├── desktop-electron/
-│   ├── main.js         <span class="c"># Electron main process</span>
-│   └── preload.js      <span class="c"># safe IPC bridge to renderer</span>
+│   ├── main.js           <span class="c"># Electron main — desktop window AND --web mode</span>
+│   ├── preload.js        <span class="c"># safe IPC bridge to renderer</span>
+│   ├── web-status.html   <span class="c"># the --web status window (stop switch)</span>
+│   └── web-preload.js    <span class="c"># minimal API for that window</span>
 ├── frontend/
 │   ├── index.html
 │   ├── app.js
+│   ├── combo.js          <span class="c"># shared searchable dropdown (repo + branch)</span>
 │   ├── styles.css
-│   └── transport.js    <span class="c"># WS vs IPC auto-detect</span>
-├── logs/               <span class="c"># run logs — date_AM|PM parent → per-run subfolder (auto-created)</span>
-└── web-flask/          <span class="c"># placeholder (Python port — not built)</span></pre>
+│   ├── favicon.ico
+│   └── transport.js      <span class="c"># WS vs IPC auto-detect</span>
+├── build/
+│   ├── icon.svg          <span class="c"># app icon SOURCE — edit here, re-render the rest</span>
+│   ├── icon.ico          <span class="c"># embedded into the .exe by electron-builder</span>
+│   └── icon.png
+├── launchers/            <span class="c"># .bat files + README shipped beside the packaged exe</span>
+├── logs/                 <span class="c"># run logs — date_AM|PM parent → per-run subfolder (auto-created)</span>
+├── config/               <span class="c"># repos.json — your saved repositories (auto-created)</span>
+├── dist/                 <span class="c"># npm run dist output (the shippable zip)</span>
+└── web-flask/            <span class="c"># placeholder (Python port — not built)</span></pre>
   </section>
 
   <!-- ============================================================ -->
   <section id="trouble">
     <h2><span class="dot"></span>Troubleshooting</h2>
+
+    <h3>"Git is not installed" fills the whole screen</h3>
+    <p>The app could not run <code>git</code>. Install <a href="https://git-scm.com/download/win">Git for Windows</a> with the default options and restart. If you believe it <em>is</em> installed, open a <b>new</b> terminal and run <code>git --version</code> — if that fails too, the installer did not add git to your <code>PATH</code>.</p>
+    <p class="muted">This check runs at startup deliberately, so you find out before filling in the wizard rather than at the first git operation.</p>
+
+    <h3>"Windows protected your PC" when starting the packaged app</h3>
+    <p>SmartScreen warns about any unsigned program. Click <b>More info</b> → <b>Run anyway</b>. It appears once per machine. If the file disappears instead, corporate antivirus quarantined it — ask IT to allow the folder.</p>
+
+    <h3>The <code>.bat</code> says it can't find "Cherry-Pick Studio.exe"</h3>
+    <p>The launcher looks for the <code>.exe</code> in its own folder. Keep <code>Run Desktop.bat</code> and <code>Run Web (browser).bat</code> next to the <code>.exe</code> — if you want a shortcut elsewhere, make a Windows shortcut rather than moving the <code>.bat</code>.</p>
+
+    <h3>Web mode: how do I stop the server?</h3>
+    <p>Close the small status window, or click <b>Stop server</b> in it. That window exists precisely to give you an off switch.</p>
+
+    <h3>It asked to resume a run that had already finished</h3>
+    <p>Fixed. A completed run now deletes its own progress file, and the prompt only appears for a session belonging to the repository you just checked <em>and</em> still having commits left. If you are on an older build, the <em>Start fresh</em> option clears the stale file.</p>
 
     <h3>"Electron failed to install correctly"</h3>
     <p>Electron's binary download didn't finish. Re-install just Electron:</p>
@@ -429,9 +557,10 @@ npm install electron --force</pre>
 
     <h3>Node.js not found</h3>
     <p>Install it from <a href="https://nodejs.org/">nodejs.org</a> and re-run. The launcher checks <code>PATH</code> and the standard <code>C:\Program Files\nodejs</code> location.</p>
+    <p class="muted">Or sidestep it entirely — the <a href="#packaged">packaged app</a> needs no Node.js at all.</p>
 
     <h3>Stop the app</h3>
-    <p>Close the Electron window to quit the desktop app. Close the server console window (or press <kbd>Ctrl</kbd>+<kbd>C</kbd> in it) to stop the web server.</p>
+    <p>Close the Electron window to quit the desktop app. Close the server console window (or press <kbd>Ctrl</kbd>+<kbd>C</kbd> in it) to stop the web server. In the packaged app's web mode, close the status window.</p>
   </section>
 
   <p class="foot">🍒 Cherry-Pick Studio — local documentation. Open this file any time by double-clicking it.</p>

@@ -11,12 +11,15 @@
 const fs = require('fs');
 const path = require('path');
 const g = require('./git');
-const { Session, parseProgressFile } = require('./session');
+const { Session, findLatestResume } = require('./session');
+const { createTracker } = require('./tracklog');
+const paths = require('./paths');
+const repostore = require('./repostore');
 
-// Default logs live INSIDE the tool folder (not in the target repo):
-//   <cherry-pick-studio>/logs/<YYYYMMDD-hhmmAM|PM>/...
-// bridge.js sits in core/, so the tool root is one level up.
-const TOOL_LOGS_DIR = path.join(__dirname, '..', 'logs');
+// Default logs live in the tool's data folder (not in the target repo):
+//   <data root>/logs/<DD-MM-YYYY_AM|PM>/<hh-mm-ss_AM|PM>/...
+// core/paths.js decides where that is — the tool folder in a dev checkout, and a
+// writable per-user folder once the tool is packaged.
 
 function timestampFolder() {
   const d = new Date();
@@ -36,8 +39,9 @@ function runFolder() {
   return `${pad(h12)}-${pad(d.getMinutes())}-${pad(d.getSeconds())}_${ampm}`;
 }
 
-function createBridge(send) {
+function createBridge(send, meta = {}) {
   let session = null;
+  const tracker = createTracker(meta);
 
   function wireSession(s) {
     s.on('log', (p) => send({ type: 'log', ...p }));
@@ -45,13 +49,33 @@ function createBridge(send) {
     s.on('await', (p) => send({ type: 'await', ...p }));
     s.on('summary', (p) => send({ type: 'summary', ...p }));
     s.on('done', (p) => send({ type: 'done', ...p }));
-    s.on('error', (p) => send({ type: 'error', ...p }));
+    s.on('error', (p) => {
+      tracker.error(0, 'session.run', { repoPath: s.repoPath, branch: s.branch }, p && p.message);
+      send({ type: 'error', ...p });
+    });
   }
 
   async function handle(msg) {
     const id = msg.id;
+    // Audit trail: record every command + its inputs (id/cmd stripped from params).
+    const params = (() => { const { cmd, id: _id, ...rest } = msg || {}; return rest; })();
+    const seq = tracker.begin(msg && msg.cmd, params);
     const reply = (data) => send({ type: 'result', id, ok: true, data });
-    const fail = (error) => send({ type: 'result', id, ok: false, error: String(error) });
+    const sendFail = (error) => send({ type: 'result', id, ok: false, error: String(error) });
+    const fail = (error) => { tracker.error(seq, msg.cmd, params, error); return sendFail(error); };
+
+    // Add a repo to the saved list. Best-effort by design: the list is a
+    // convenience, so a write failure must never turn a successful command into
+    // an error reply — it is recorded in the audit log and otherwise ignored.
+    const remember = (repoPath, branch) => {
+      try {
+        if (!repostore.remember(repoPath, branch)) {
+          tracker.error(seq, msg.cmd, params, 'Could not write the saved-repo list.');
+        }
+      } catch (err) {
+        tracker.error(seq, msg.cmd, params, err);
+      }
+    };
 
     try {
       switch (msg.cmd) {
@@ -62,7 +86,30 @@ function createBridge(send) {
           if (!isRepo) return fail('Not a git repository.');
           const pending = await g.pendingOps(repoPath);
           const worktree = await g.worktreeStatus(repoPath);
+          // Passing Check is what earns a place in the saved-repo list.
+          remember(repoPath, '');
           return reply({ isRepo, pending, worktree });
+        }
+
+        // Startup capability check. git is a hard requirement the packaged build
+        // cannot supply, so the UI asks first and says what to install rather
+        // than letting the user hit a bare spawn error at Step 1.
+        case 'probe': {
+          return reply({ git: await g.gitVersion() });
+        }
+
+        case 'listRepos': {
+          return reply({ repos: repostore.list() });
+        }
+
+        case 'pinRepo': {
+          repostore.setPinned(msg.repoPath, msg.pinned);
+          return reply({ ok: true });
+        }
+
+        case 'forgetRepo': {
+          repostore.remove(msg.repoPath);
+          return reply({ ok: true });
         }
 
         case 'abortPending': {
@@ -77,6 +124,11 @@ function createBridge(send) {
           return r.ok ? reply(r) : fail(r.error);
         }
 
+        case 'listBranches': {
+          const branches = await g.listRemoteBranches(msg.repoPath);
+          return reply({ branches });
+        }
+
         case 'checkBranch': {
           await g.fetch(msg.repoPath);
           const existsRemote = await g.branchExistsOnRemote(msg.repoPath, msg.branch);
@@ -87,7 +139,11 @@ function createBridge(send) {
 
         case 'checkoutBranch': {
           const r = await g.checkoutFreshFromRemote(msg.repoPath, msg.branch);
-          return r.ok ? reply({ ok: true }) : fail(r.error);
+          if (!r.ok) return fail(r.error);
+          // Now that the user has committed to a branch, remember it alongside
+          // the repo so the next session can pre-fill it.
+          remember(msg.repoPath, msg.branch);
+          return reply({ ok: true });
         }
 
         case 'analyzeCommits': {
@@ -115,31 +171,15 @@ function createBridge(send) {
         }
 
         case 'findResume': {
-          const base = msg.logBase || TOOL_LOGS_DIR;
-          let found = null;
-          try {
-            if (fs.existsSync(base)) {
-              const stack = [base];
-              while (stack.length && !found) {
-                const dir = stack.pop();
-                for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
-                  const full = path.join(dir, ent.name);
-                  if (ent.isDirectory()) stack.push(full);
-                  else if (ent.name === '.cherry-pick-progress') {
-                    found = full;
-                    break;
-                  }
-                }
-              }
-            }
-          } catch (_) {}
-          if (!found) return reply({ found: false });
-          return reply({ found: true, file: found, data: parseProgressFile(found) });
+          const base = msg.logBase || paths.logsDir();
+          const hit = findLatestResume(base, msg.repoPath);
+          if (!hit) return reply({ found: false });
+          return reply({ found: true, file: hit.file, data: hit.data, mtimeMs: hit.mtimeMs });
         }
 
         case 'start': {
           const c = msg.config;
-          const logBase = c.logBase || TOOL_LOGS_DIR;
+          const logBase = c.logBase || paths.logsDir();
           // Parent = date folder (DD-MM-YYYY_AM|PM); inside it a fresh subfolder
           // per run (hh-mm-ss_AM|PM). A counter guards against same-second runs.
           const dateDir = path.join(logBase, timestampFolder());
@@ -211,13 +251,15 @@ function createBridge(send) {
           return fail(`Unknown command: ${msg.cmd}`);
       }
     } catch (err) {
-      return fail(err.message);
+      tracker.error(seq, msg && msg.cmd, params, err);   // exception: keep the stack
+      return sendFail(err.message);
     }
   }
 
   function dispose() {
     if (session) session.removeAllListeners();
     session = null;
+    tracker.close();
   }
 
   return { handle, dispose };

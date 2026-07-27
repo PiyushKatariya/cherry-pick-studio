@@ -1,0 +1,39 @@
+<!--
+  Source of truth for the app icon. icon.ico (what electron-builder embeds in the
+  exe) and icon.png are rendered from this, so edit here and re-render rather than
+  editing the binaries.
+
+  Colours are the app's own: --accent #e0556b for the fruit, --green #3fb950 for
+  the stems, and the --panel dark tile so it reads on a light or dark taskbar.
+
+  To re-render: open in any SVG-capable editor or browser, export PNGs at
+  16/32/48/256, then pack them into an .ico. The 16px and 32px variants in the
+  build script are deliberately coarser (fatter stems, no leaf) because fine
+  detail turns to mush at that scale.
+-->
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#273444"/>
+      <stop offset="1" stop-color="#131a23"/>
+    </linearGradient>
+    <radialGradient id="fruit" cx="0.34" cy="0.28" r="0.85">
+      <stop offset="0" stop-color="#f8909d"/>
+      <stop offset="0.5" stop-color="#e0556b"/>
+      <stop offset="1" stop-color="#ad3149"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="256" height="256" rx="54" fill="url(#bg)"/>
+
+  <!-- stems -->
+  <path d="M133 60 C 106 98, 94 138, 90 172" stroke="#3fb950" stroke-width="14" fill="none" stroke-linecap="round"/>
+  <path d="M133 60 C 156 102, 168 142, 172 176" stroke="#3fb950" stroke-width="14" fill="none" stroke-linecap="round"/>
+
+  <!-- leaf -->
+  <path d="M135 58 C 164 30, 206 30, 216 46 C 196 74, 158 78, 135 58 Z" fill="#4ed167"/>
+
+  <!-- fruit -->
+  <circle cx="86" cy="192" r="42" fill="url(#fruit)"/>
+  <circle cx="176" cy="198" r="38" fill="url(#fruit)"/>
+</svg>

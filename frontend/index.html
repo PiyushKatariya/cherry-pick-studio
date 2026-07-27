@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Cherry-Pick Studio</title>
+  <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48 256x256" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -16,34 +17,43 @@
       </div>
     </div>
     <div class="topbar-actions" style="display:flex;align-items:center;gap:10px">
+      <span id="activity" class="activity" title="What the tool is doing right now"><span class="dot"></span><span id="activityText">Ready</span></span>
       <button id="newSessionTopBtn" class="btn ghost small" title="Clear everything and start a new cherry-pick session">🔄 New session</button>
       <button id="helpBtn" class="btn ghost small" title="Open the user guide">📖 Help</button>
       <span id="transportBadge" class="badge muted">connecting…</span>
     </div>
   </header>
 
+  <!-- Shown only when git cannot be found. The engine shells out to git for
+       everything, so there is nothing useful to do without it. -->
+  <div id="noGitBanner" class="nogit hidden">
+    <h2>⛔ Git is not installed</h2>
+    <p>Cherry-Pick Studio drives the real <code>git</code> command, so it cannot run without it.
+       Everything else is bundled — git is the one thing you need to install.</p>
+    <p>Install <b>Git for Windows</b> from <span class="mono">https://git-scm.com/download/win</span>,
+       accepting the default options, then start Cherry-Pick Studio again.</p>
+    <p class="hint">Already installed? Make sure <span class="mono">git</span> works in a new
+       terminal — the installer must have added it to your PATH.</p>
+  </div>
+
   <main class="layout">
     <!-- ================= SETUP COLUMN ================= -->
     <section class="setup">
-
-      <!-- Resume banner -->
-      <div id="resumeBanner" class="banner hidden">
-        <strong>⚠ Previous session found.</strong>
-        <div id="resumeDetails" class="mono small"></div>
-        <div class="row">
-          <button id="resumeStartBtn" class="btn small">Resume</button>
-          <button id="resumeIgnoreBtn" class="btn small ghost">Start fresh</button>
-        </div>
-      </div>
 
       <!-- Step 1: Repository -->
       <div class="step" id="step-repo">
         <h2><span class="n">1</span> Repository</h2>
         <div class="row">
-          <input id="repoPath" type="text" placeholder="Path to your git repo (e.g. D:\Projects\MyRepo)" />
+          <div class="combo" id="repoCombo">
+            <input id="repoPath" type="text" placeholder="Path to your git repo (e.g. D:\Projects\MyRepo)" autocomplete="off"
+                   role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="repoListBox" />
+            <button id="repoCaret" class="caret" type="button" title="Show saved repositories" aria-label="Show saved repositories">▾</button>
+            <ul id="repoListBox" class="combo-list repo-list hidden" role="listbox" aria-label="Saved repositories"></ul>
+          </div>
           <button id="browseBtn" class="btn ghost hidden">Browse…</button>
           <button id="checkRepoBtn" class="btn">Check</button>
         </div>
+        <p id="repoHint" class="hint hidden"></p>
         <div id="repoStatus" class="status"></div>
         <div id="repoActions" class="row hidden">
           <button id="abortPendingBtn" class="btn warn small hidden">Abort pending op</button>
@@ -55,7 +65,11 @@
       <div class="step locked" id="step-branch">
         <h2><span class="n">2</span> Client branch</h2>
         <div class="row">
-          <input id="branchName" type="text" placeholder="client/acme-release-2026Q1" />
+          <div class="combo" id="branchCombo">
+            <input id="branchName" type="text" placeholder="Type or pick an origin branch…" autocomplete="off"
+                   role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="branchListBox" />
+            <ul id="branchListBox" class="combo-list hidden" role="listbox" aria-label="Origin branches"></ul>
+          </div>
           <button id="checkBranchBtn" class="btn">Check</button>
         </div>
         <div id="branchStatus" class="status"></div>
@@ -98,8 +112,13 @@
           <input id="logBase" type="text" placeholder="(default)" />
         </div>
         <div class="opt">
-          <label class="opt-label">Already-applied scan depth <em>(branch commits to patch-scan; blank = 200, 0 = exact-hash only / fastest)</em></label>
-          <input id="scanDepth" type="number" min="0" step="1" placeholder="200" />
+          <label class="opt-label">Already-applied detection</label>
+          <label class="radio"><input type="checkbox" id="scanDeepChk" /> Deep-scan branch for equivalent commits <em>(patch-id)</em></label>
+          <p class="hint">Off (default): match by commit hash only — fastest. On: also patch-scan recent branch commits to catch already-applied changes with different hashes.</p>
+          <div id="scanDepthWrap" class="row hidden">
+            <label class="opt-label" style="margin:0">Branch commits to scan</label>
+            <input id="scanDepth" type="number" min="1" step="1" value="200" style="max-width:120px" />
+          </div>
         </div>
       </div>
 
@@ -110,7 +129,7 @@
         <div id="appliedNote" class="status"></div>
         <div id="orderTableWrap"></div>
         <div id="orderActions" class="row hidden">
-          <button id="reorderBtn" class="btn ghost small">Reorder…</button>
+          <button id="editCommitsBtn" class="btn ghost small">✏ Edit commits</button>
           <button id="startBtn" class="btn go">▶ Start cherry-pick</button>
         </div>
       </div>
@@ -144,6 +163,7 @@
   </div>
 
   <script src="transport.js"></script>
+  <script src="combo.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -27,15 +27,26 @@
   // Run an async button action while disabling the button + showing a spinner.
   // Guards against double-clicks; restores the button when done (unless its step
   // has since been marked .done, in which case it stays disabled).
+  // Global "what's happening right now" indicator in the header. Idle = "Ready".
+  function setActivity(text) {
+    const t = $('activityText');
+    if (!t) return;
+    const busy = !!text && text !== 'Ready';
+    t.textContent = text || 'Ready';
+    $('activity').classList.toggle('busy', busy);
+  }
+
   async function withBusy(btn, label, fn) {
     if (btn.disabled) return;            // already in flight or locked
     const prevHTML = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = `<span class="spin"></span>${label || 'Working…'}`;
+    setActivity(label || 'Working…');
     try {
       return await fn();
     } finally {
       btn.innerHTML = prevHTML;
+      setActivity('Ready');
       const step = btn.closest('.step');
       // Keep the button disabled if its step is fully done, or if it was
       // explicitly locked during the action (e.g. a validated input's button).
@@ -81,14 +92,18 @@
     if (mode === 'hide') {
       el.classList.add('hidden');
       bar.classList.remove('active');
+      setActivity('Ready');
       return;
     }
     el.classList.remove('hidden');
     el.classList.toggle('waiting', mode === 'waiting');
-    $('runStatusText').textContent = text ||
+    const msg = text ||
       (mode === 'waiting' ? 'Paused — waiting for your response' : 'Cherry-pick in progress');
+    $('runStatusText').textContent = msg;
     $('runDots').style.display = mode === 'waiting' ? 'none' : '';
     bar.classList.toggle('active', mode === 'running');   // animated stripes only while running
+    // Mirror the run phase into the always-visible header activity pill.
+    setActivity(msg);
   }
 
   // Reset the whole wizard to a fresh state so the user can run another batch
@@ -107,7 +122,11 @@
 
     // ---- inputs & status text ----
     $('branchName').value = '';
+    branchCombo.setData([]);
+    branchCombo.hide();
     $('commitInput').value = '';
+    $('scanDeepChk').checked = false;
+    $('scanDepth').value = '200';
     setStatus($('repoStatus'), '');
     setStatus($('branchStatus'), '');
     setStatus($('commitStatus'), '');
@@ -115,14 +134,14 @@
     $('orderTableWrap').innerHTML = '';
 
     // ---- conditional rows back to hidden ----
-    ['repoActions', 'abortPendingBtn', 'stashBtn', 'branchConfirm', 'orderActions', 'resumeBanner']
+    ['repoActions', 'abortPendingBtn', 'stashBtn', 'branchConfirm', 'orderActions', 'scanDepthWrap']
       .forEach((id) => $(id).classList.add('hidden'));
 
     // ---- re-open every step, then re-lock everything past step 1 ----
     ['step-repo', 'step-branch', 'step-commits', 'step-options', 'step-order'].forEach(reopenStep);
     ['step-branch', 'step-commits', 'step-options', 'step-order'].forEach(lock);
 
-    // ---- progress + summary panes ----
+    // ---- progress + summary + log panes ----
     Object.keys(liRefs).forEach((k) => delete liRefs[k]);
     $('progressList').innerHTML = '';
     $('progressMeta').textContent = '';
@@ -131,12 +150,19 @@
     setRunStatus('hide');
     $('summary').classList.add('hidden');
     $('summary').innerHTML = '';
+    $('logView').innerHTML = '';           // clear the live log so each session starts fresh
 
     // ---- start button + freeze state ----
     const sb = $('startBtn');
     sb.disabled = false;
     if (startBtnLabel) sb.innerHTML = startBtnLabel;
     freezeSetup(false);
+    setActivity('Ready');
+
+    // reopenStep re-enabled the repo input and its caret, so re-offer the saved
+    // list — it may have gained the repo used in the session just finished.
+    pendingBranch = '';
+    loadRepos();
 
     $('repoPath').focus();
     appendLog('info', '— new session — paste the next batch when ready.');
@@ -151,7 +177,32 @@
     b.textContent = kind === 'electron' ? 'desktop' : 'web';
     b.className = 'badge live';
     if (T.isElectron) $('browseBtn').classList.remove('hidden');
+    // Offer previously used repos, but never pre-fill the path — Check must not
+    // be able to fire against a repo the user hasn't looked at.
+    loadRepos();
+    checkGit();
   });
+
+  // git is the one prerequisite the packaged build cannot bundle. Ask before the
+  // user invests any effort in the wizard, rather than failing at Step 1 with a
+  // spawn error that names no cause.
+  async function checkGit() {
+    let git = null;
+    try {
+      const r = await T.request('probe', {});
+      git = r.git;
+    } catch (_) {
+      return;   // probe itself failed — let the normal error paths report it
+    }
+    if (git) {
+      appendLog('info', `git ${git} detected.`);
+      return;
+    }
+    $('noGitBanner').classList.remove('hidden');
+    document.querySelector('.layout').classList.add('hidden');
+    setActivity('Git not found');
+    appendLog('error', 'git was not found on PATH — cannot continue.');
+  }
 
   // ---- Help button: open the user guide ----------------------------------
   $('helpBtn').addEventListener('click', () => {
@@ -181,7 +232,6 @@
       const sb = $('startBtn');
       sb.disabled = false;
       if (startBtnLabel) sb.innerHTML = startBtnLabel;
-      $('reorderBtn').disabled = false;
       freezeSetup(false);
     }
     setRunStatus('hide');
@@ -204,6 +254,74 @@
     const dir = await T.pickFolder();
     if (dir) $('repoPath').value = dir;
   }));
+
+  // ---- saved repositories -------------------------------------------------
+  // Repos are remembered automatically once they pass Check, so the user picks
+  // from a list instead of retyping a path every session. Pinned ones sort to
+  // the top; the rest are the most recent 15.
+
+  // Branch to pre-fill in Step 2 once the chosen repo passes Check.
+  let pendingBranch = '';
+
+  function repoRow(r) {
+    const missing = r.exists === false;   // null = unknown (UNC), not missing
+    return (
+      `<span class="pin${r.pinned ? ' on' : ''}" data-act="pin" title="${r.pinned ? 'Unpin' : 'Pin to top'}">📌</span>` +
+      `<span class="rp${missing ? ' missing' : ''}">${esc(r.path)}${missing ? ' <em>(missing)</em>' : ''}</span>` +
+      `<span class="rb">${esc(r.branch || '')}</span>` +
+      `<span class="forget" data-act="forget" title="Forget this repo">✕</span>`
+    );
+  }
+
+  const repoCombo = window.Combo.create({
+    input: $('repoPath'),
+    listBox: $('repoListBox'),
+    container: $('repoCombo'),
+    idPrefix: 'repoOpt',
+    emptyText: 'No matching saved repository',
+    matches: (r, q) => r.path.toLowerCase().includes(q),
+    renderRow: repoRow,
+    onChoose: (r) => {
+      $('repoPath').value = r.path;
+      pendingBranch = r.branch || '';
+      repoCombo.hide();
+      // Check is read-only, so running it here turns two clicks into one.
+      withBusy($('checkRepoBtn'), 'Checking repository…', runRepoCheck);
+    },
+    onAction: async (act, r) => {
+      try {
+        if (act === 'pin') await T.request('pinRepo', { repoPath: r.path, pinned: !r.pinned });
+        else if (act === 'forget') await T.request('forgetRepo', { repoPath: r.path });
+      } catch (err) {
+        appendLog('warn', `Could not update the saved repo list: ${err.message}`);
+      }
+      await loadRepos();
+      repoCombo.refresh();   // keep the list open so several edits are possible
+    },
+  });
+
+  // Best-effort: on any failure the repo input stays a plain text box.
+  async function loadRepos() {
+    let repos = [];
+    try {
+      const r = await T.request('listRepos', {});
+      repos = r.repos || [];
+    } catch (_) {}
+    repoCombo.setData(repos);
+    // Never advertise the picker once the repo is locked in: the caret is
+    // disabled by then, so "click ▾" would be telling the user to do the
+    // impossible. Checked here because loadRepos() also runs after a Check.
+    const hint = $('repoHint');
+    const show = repos.length > 0 && !$('repoPath').disabled;
+    hint.classList.toggle('hidden', !show);
+    if (show) {
+      hint.innerHTML =
+        `${repos.length} saved ${repos.length === 1 ? 'repository' : 'repositories'} — ` +
+        `click <b>▾</b> to pick one, or type / Browse for a new one.`;
+    }
+  }
+
+  $('repoCaret').addEventListener('click', (e) => { e.preventDefault(); repoCombo.toggle(); });
 
   // Core repo preflight — callable directly (so stash/abort can refresh the
   // status without going through the now-disabled Check button).
@@ -236,8 +354,19 @@
       setStatus(s, html);
       // Validated OK → lock the repo path + Browse + Check so it can't change.
       // (Abort/Stash remain available; they're the only remediation actions.)
-      lockControls($('repoPath'), $('browseBtn'), $('checkRepoBtn'));
+      repoCombo.hide();
+      lockControls($('repoPath'), $('repoCaret'), $('browseBtn'), $('checkRepoBtn'));
+      $('repoHint').classList.add('hidden');
       unlock('step-branch');
+      // Preflight just remembered this repo, so keep the list in step.
+      loadRepos();
+      // A repo picked from the saved list carries the branch it was last used
+      // with. Pre-fill it only — Step 2's own Check still has to run.
+      if (pendingBranch) {
+        $('branchName').value = pendingBranch;
+        pendingBranch = '';
+      }
+      populateBranchList();
       checkResume();
     } catch (err) {
       setStatus(s, line('err', '✗ ' + err.message));
@@ -245,7 +374,31 @@
     }
   }
 
-  $('checkRepoBtn').addEventListener('click', (ev) => withBusy(ev.currentTarget, 'Checking…', runRepoCheck));
+  // ---- searchable branch dropdown ----------------------------------------
+  const branchCombo = window.Combo.create({
+    input: $('branchName'),
+    listBox: $('branchListBox'),
+    container: $('branchCombo'),
+    idPrefix: 'branchOpt',
+    emptyText: 'No matching branch',
+    renderRow: (b) => esc(b),
+    onChoose: (b) => {
+      $('branchName').value = b;
+      branchCombo.hide();
+      $('branchName').focus();
+    },
+  });
+
+  // Fetch origin branches after a repo check and hand them to the combobox.
+  // Best-effort: on any failure the input stays a plain text box.
+  async function populateBranchList() {
+    try {
+      const r = await T.request('listBranches', { repoPath: state.repoPath });
+      branchCombo.setData(r.branches || []);
+    } catch (_) { branchCombo.setData([]); }
+  }
+
+  $('checkRepoBtn').addEventListener('click', (ev) => withBusy(ev.currentTarget, 'Checking repository…', runRepoCheck));
 
   $('abortPendingBtn').addEventListener('click', (ev) => withBusy(ev.currentTarget, 'Aborting…', async () => {
     await T.request('abortPending', { repoPath: state.repoPath });
@@ -267,37 +420,47 @@
   async function checkResume() {
     try {
       const r = await T.request('findResume', { repoPath: state.repoPath, logBase: $('logBase').value.trim() });
-      if (!r.found) { $('resumeBanner').classList.add('hidden'); return; }
-      const d = r.data;
-      $('resumeDetails').textContent =
-        `branch=${d.branch}  done=${d.last_completed_index}  total=${d.total_commits}  remaining=${(d.remaining_commits || '').split(' ').filter(Boolean).length}`;
-      $('resumeBanner').classList.remove('hidden');
-      $('resumeBanner')._file = r.file;
-      $('resumeBanner')._data = d;
+      if (!r.found) return;
+      modalResume(r.data, r.file, r.mtimeMs);
     } catch (_) {}
   }
 
-  $('resumeIgnoreBtn').addEventListener('click', (ev) => withBusy(ev.currentTarget, 'Working…', async () => {
-    const file = $('resumeBanner')._file;
-    if (file) await T.request('deleteProgress', { file });
-    $('resumeBanner').classList.add('hidden');
-  }));
-
-  $('resumeStartBtn').addEventListener('click', () => {
-    const d = $('resumeBanner')._data;
-    if (!d) return;
-    // Pre-fill the wizard from the saved session, then let the user press Start.
-    $('branchName').value = d.branch;
-    $('commitInput').value = (d.remaining_commits || '').split(' ').filter(Boolean).join(', ');
-    document.querySelector(`input[name=push][value="${d.push_mode}"]`)?.click();
-    document.querySelector(`input[name=mode][value="${d.run_mode}"]`)?.click();
-    $('resumeBanner').classList.add('hidden');
-    appendLog('info', 'Loaded previous session — check out the branch, validate, then Start.');
-    // Re-open any steps locked by a prior run so the resumed session is editable.
-    reopenStep('step-branch');
-    reopenStep('step-commits');
-    unlock('step-branch');
-  });
+  // An UNFINISHED session was found — force a Resume / Start-fresh choice with a
+  // blocking modal so the user can't accidentally proceed past it. Completed runs
+  // never reach here: the engine deletes its progress file when it finishes, and
+  // findResume ignores files that belong to another repo or have nothing left.
+  function modalResume(d, file, mtimeMs) {
+    const remaining = (d.remaining_commits || '').split(' ').filter(Boolean).length;
+    const when = mtimeMs ? new Date(mtimeMs).toLocaleString() : 'unknown';
+    showModal(`
+      <h3>⚠ Unfinished session found</h3>
+      <p>A cherry-pick run for this repository stopped before it finished.</p>
+      <div class="mono small">repo=${esc(d.repo_path)}<br>saved=${esc(when)}<br>branch=${esc(d.branch)}  done=${esc(d.last_completed_index)}  total=${esc(d.total_commits)}  remaining=${remaining}</div>
+      <div class="opt-row" data-a="resume"><b>Resume</b> — load this session's branch &amp; remaining commits into the wizard.</div>
+      <div class="opt-row" data-a="fresh"><b>Start fresh</b> — discard the saved progress file and begin a new run.</div>
+    `);
+    $('modal').querySelectorAll('.opt-row').forEach((row) =>
+      row.addEventListener('click', async () => {
+        const a = row.dataset.a;
+        hideModal();
+        if (a === 'resume') {
+          // Pre-fill the wizard from the saved session, then let the user press Start.
+          $('branchName').value = d.branch;
+          $('commitInput').value = (d.remaining_commits || '').split(' ').filter(Boolean).join(', ');
+          document.querySelector(`input[name=push][value="${d.push_mode}"]`)?.click();
+          document.querySelector(`input[name=mode][value="${d.run_mode}"]`)?.click();
+          appendLog('info', 'Loaded previous session — check out the branch, validate, then Start.');
+          // Re-open any steps locked by a prior run so the resumed session is editable.
+          reopenStep('step-branch');
+          reopenStep('step-commits');
+          unlock('step-branch');
+        } else {
+          try { if (file) await T.request('deleteProgress', { file }); } catch (_) {}
+          appendLog('info', 'Discarded previous session — starting fresh.');
+        }
+      })
+    );
+  }
 
   // =========================================================================
   // Step 2 — Branch
@@ -373,6 +536,11 @@
     }
   }));
 
+  // ---- scan-depth: reveal the depth field only when deep-scan is enabled ----
+  $('scanDeepChk').addEventListener('change', (e) => {
+    $('scanDepthWrap').classList.toggle('hidden', !e.target.checked);
+  });
+
   // ---- run mode hint ----
   document.querySelectorAll('input[name=mode]').forEach((r) =>
     r.addEventListener('change', () => {
@@ -393,12 +561,11 @@
     setStatus(note, line('info', 'Sorting by date & scanning target branch…'));
     try {
       const inputs = state.valid.map((c) => c.input);
-      const params = { repoPath: state.repoPath, branch: state.branch, inputs };
-      const depthRaw = $('scanDepth').value.trim();
-      if (depthRaw !== '') {
-        const d = parseInt(depthRaw, 10);
-        if (!isNaN(d) && d >= 0) params.scanDepth = d;
-      }
+      // Deep-scan off (default) → exact-hash match only (scanDepth 0, fastest).
+      // On → patch-scan the given number of recent branch commits (default 200).
+      const deep = $('scanDeepChk').checked;
+      const scanDepth = deep ? (parseInt($('scanDepth').value, 10) || 200) : 0;
+      const params = { repoPath: state.repoPath, branch: state.branch, inputs, scanDepth };
       const r = await T.request('analyzeRun', params);
       state.plan = r.ordered;
       state.applied = r.applied;
@@ -421,38 +588,88 @@
       setStatus(note, html);
       renderPlan();
       $('orderActions').classList.remove('hidden');
-      // Plan built → lock the Analyze button; only Reorder & Start remain.
-      // (Use Reorder to re-order, or "New session" to rebuild from scratch.)
+      // Plan built → lock the Analyze button + the whole Options step, since
+      // scan depth (and the rest of Step 4) fed into this plan. To change them,
+      // use "Edit commits" (reopens steps 3–4) or "New session".
       lockControls($('analyzeRunBtn'));
+      completeStep('step-options');
     } catch (err) {
       setStatus(note, line('err', '✗ ' + err.message));
     }
   }));
 
   function renderPlan() {
-    const rows = state.plan.map((c, i) =>
-      `<tr class="${c.isMerge ? 'merge' : ''}">
+    const rows = state.plan.map((c, i) => {
+      // Where did the user originally paste this commit? (order they entered)
+      const pasted = state.valid.findIndex((v) => v.input === c.input) + 1;
+      const moved = pasted && pasted !== i + 1;   // run order differs from paste order
+      return `<tr class="${c.isMerge ? 'merge' : ''}" draggable="true" data-idx="${i}">
+        <td class="drag" title="Drag to reorder">⠿</td>
         <td>${i + 1}</td>
+        <td class="paste ${moved ? 'reordered' : 'muted'}">${pasted || '—'}</td>
         <td class="mono">${esc(c.shortHash)}</td>
         <td>${esc(c.author)}</td>
         <td class="mono">${esc(c.dateStr)}</td>
         <td>${esc(c.subject)}${c.isMerge ? ' <em>(merge)</em>' : ''}</td>
-      </tr>`).join('');
+      </tr>`;
+    }).join('');
     $('orderTableWrap').innerHTML =
-      `<table class="ctable"><thead><tr><th>#</th><th>Hash</th><th>Author</th><th>Date &amp; time</th><th>Message</th></tr></thead><tbody>${rows}</tbody></table>`;
+      `<p class="hint">Commits run <b>top → bottom</b> (auto-sorted oldest → newest by date). <b>Drag a row</b> to reorder. <b>You pasted #</b> is the order you entered them — highlighted where the tool changed it.</p>
+       <table class="ctable"><thead><tr><th></th><th>Run #</th><th>You pasted #</th><th>Hash</th><th>Author</th><th>Date &amp; time</th><th>Message</th></tr></thead><tbody id="planBody">${rows}</tbody></table>`;
+    wirePlanDrag();
   }
 
-  $('reorderBtn').addEventListener('click', () => {
-    const cur = state.plan.map((_, i) => i + 1).join(' ');
-    const input = prompt(`Enter the ${state.plan.length} row numbers in the desired order:`, cur);
-    if (!input) return;
-    const nums = input.trim().split(/\s+/).map(Number);
-    if (nums.length !== state.plan.length || new Set(nums).size !== nums.length || nums.some((n) => n < 1 || n > state.plan.length || !Number.isInteger(n))) {
-      alert(`Invalid: enter each number 1..${state.plan.length} exactly once.`);
-      return;
-    }
-    state.plan = nums.map((n) => state.plan[n - 1]);
-    renderPlan();
+  // Drag-and-drop reordering of plan rows (replaces the old prompt(), which
+  // Electron's renderer does not implement). Dropping a row inserts it BEFORE
+  // the row it's dropped on.
+  let dragFrom = null;
+  function wirePlanDrag() {
+    const body = $('planBody');
+    if (!body) return;
+    body.querySelectorAll('tr').forEach((tr) => {
+      tr.addEventListener('dragstart', (e) => {
+        dragFrom = Number(tr.dataset.idx);
+        e.dataTransfer.effectAllowed = 'move';
+        tr.classList.add('dragging');
+      });
+      tr.addEventListener('dragend', () => {
+        dragFrom = null;
+        body.querySelectorAll('tr').forEach((r) => r.classList.remove('dragging', 'dragover'));
+      });
+      tr.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        tr.classList.add('dragover');
+      });
+      tr.addEventListener('dragleave', () => tr.classList.remove('dragover'));
+      tr.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const to = Number(tr.dataset.idx);
+        if (dragFrom === null || dragFrom === to) return;
+        const [moved] = state.plan.splice(dragFrom, 1);
+        const insertAt = dragFrom < to ? to - 1 : to;   // account for the removal shift
+        state.plan.splice(insertAt, 0, moved);
+        renderPlan();
+      });
+    });
+  }
+
+  // "Edit commits" — go back and add/remove/change the commit list after a plan
+  // was built. Reopens Steps 3 (Commits) & 4 (Options), drops the built plan,
+  // and returns the user to re-validate → re-analyze.
+  $('editCommitsBtn').addEventListener('click', () => {
+    reopenStep('step-commits');
+    reopenStep('step-options');
+    unlockControls($('analyzeRunBtn'));
+    lock('step-order');
+    state.plan = [];
+    state.applied = [];
+    state.preSkipped = 0;
+    $('orderTableWrap').innerHTML = '';
+    setStatus($('appliedNote'), '');
+    setStatus($('commitStatus'), line('info', 'Edit the commit list below, then re-validate.'));
+    $('orderActions').classList.add('hidden');
+    $('commitInput').focus();
   });
 
   let startBtnLabel = '';
@@ -463,7 +680,6 @@
     startBtnLabel = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<span class="spin"></span>Running…';
-    $('reorderBtn').disabled = true;
     freezeSetup(true);                        // no editing any step while running
     $('progressList').innerHTML = '';
     $('summary').classList.add('hidden');
@@ -485,7 +701,6 @@
       alert(e.message);
       btn.disabled = false;
       if (startBtnLabel) btn.innerHTML = startBtnLabel;
-      $('reorderBtn').disabled = false;
       freezeSetup(false);
       setRunStatus('hide');
     });
@@ -625,6 +840,10 @@
     $('progressBar').style.width = '100%';
     const stashBtn = e.didStash
       ? `<button id="popStashBtn" class="btn small">Pop stash (${esc(e.stashRef)})</button>` : '';
+    // A clean run deletes its own progress file, so there is nothing to offer.
+    // Only an interrupted run leaves one behind.
+    const delBtn = e.progressLeft
+      ? '<button id="delProgressBtn" class="btn small ghost">Delete progress file</button>' : '';
     $('summary').innerHTML = `
       <h3>Cherry-pick summary</h3>
       <div class="grid">
@@ -640,7 +859,7 @@
       <div class="row">
         <button id="newSessionBtn" class="btn small go">🔄 Start new session</button>
         ${stashBtn}
-        <button id="delProgressBtn" class="btn small ghost">Delete progress file</button>
+        ${delBtn}
       </div>`;
     $('summary').classList.remove('hidden');
     const pop = $('popStashBtn');
@@ -651,7 +870,8 @@
         lockControls(pop);                    // one-shot — stays disabled after success
       } catch (err) { alert('Pop failed: ' + err.message); }
     }));
-    $('delProgressBtn').addEventListener('click', (ev) => withBusy(ev.currentTarget, 'Deleting…', async () => {
+    const del = $('delProgressBtn');
+    if (del) del.addEventListener('click', (ev) => withBusy(ev.currentTarget, 'Deleting…', async () => {
       try {
         await T.request('deleteProgress', { file: e.progressFile });
         appendLog('info', 'Progress file deleted.');

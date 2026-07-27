@@ -24,3 +24,9 @@ Python is not installed on this machine.
 
 Until then, use the Node web server (`npm run web`) or the Electron desktop app
 (`npm run desktop`) — both are fully functional and need no Python.
+
+> **Note:** the original motivation for a Flask port was avoiding a Node.js
+> install. That is already solved — `npm run dist` builds a packaged app whose
+> `.exe` serves **both** the browser and desktop UIs on a machine with no Node.js
+> (see the root `README.md`). This port is therefore optional, and only worth
+> building if you specifically want a Python backend.
